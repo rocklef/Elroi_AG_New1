@@ -8,6 +8,8 @@ import Sidebar from '@/components/Sidebar'
 export default function DashboardPage() {
   const [user, setUser] = useState(null)
   const router = useRouter()
+  const [animationClass, setAnimationClass] = useState('opacity-0 translate-y-4')
+  const [cardAnimationClasses, setCardAnimationClasses] = useState(['opacity-0 translate-y-4', 'opacity-0 translate-y-4', 'opacity-0 translate-y-4'])
 
   useEffect(() => {
     const checkUser = async () => {
@@ -30,8 +32,25 @@ export default function DashboardPage() {
       }
     })
 
+    // Trigger entrance animation
+    setTimeout(() => {
+      setAnimationClass('opacity-100 translate-y-0')
+    }, 100)
+
+    // Staggered card animations
+    const timers = [200, 300, 400].map((delay, index) => {
+      return setTimeout(() => {
+        setCardAnimationClasses(prev => {
+          const newClasses = [...prev]
+          newClasses[index] = 'opacity-100 translate-y-0'
+          return newClasses
+        })
+      }, delay)
+    })
+
     return () => {
       subscription.unsubscribe()
+      timers.forEach(timer => clearTimeout(timer))
     }
   }, [router])
 
@@ -46,7 +65,7 @@ export default function DashboardPage() {
       value: '44.5',
       unit: '°C',
       subtext: 'Δ +0.8°C since 10:20 AM',
-      color: 'text-[#1E73BE]',
+      textColor: 'text-white',
       bgColor: 'bg-[#1E73BE]',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -59,7 +78,7 @@ export default function DashboardPage() {
       value: '35.0',
       unit: '°C',
       subtext: 'Stabilization ETA 2h 45m',
-      color: 'text-[#E87533]',
+      textColor: 'text-white',
       bgColor: 'bg-[#E87533]',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -72,7 +91,7 @@ export default function DashboardPage() {
       value: '2:45:00',
       unit: '',
       subtext: 'Confidence 94%',
-      color: 'text-[#1E8D8D]',
+      textColor: 'text-white',
       bgColor: 'bg-[#1E8D8D]',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -94,11 +113,11 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between px-8 h-full">
             <h1 className="text-white text-xl font-bold">Dashboard</h1>
             <div className="flex items-center space-x-6">
-              <button className="relative p-2 text-gray-300 hover:text-white transition-colors cursor-pointer">
+              <button className="relative p-2 text-gray-300 hover:text-white transition-colors cursor-pointer transform hover:scale-105 duration-200">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
-                <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500"></span>
+                <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
               </button>
               <div className="flex items-center text-sm text-gray-300">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -107,7 +126,7 @@ export default function DashboardPage() {
                 <span>11:22 AM</span>
               </div>
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 rounded-full bg-white border border-[#1E73BE] flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-white border border-[#1E73BE] flex items-center justify-center transform hover:scale-105 duration-200">
                   <span className="text-[#1E73BE] text-sm font-semibold">JD</span>
                 </div>
                 <button 
@@ -116,7 +135,7 @@ export default function DashboardPage() {
                     router.push('/login')
                     router.refresh()
                   }}
-                  className="text-white text-sm font-medium hover:text-[#1E73BE] transition-colors cursor-pointer"
+                  className="text-white text-sm font-medium hover:text-[#1E73BE] transition-colors cursor-pointer transform hover:scale-105 duration-200"
                 >
                   Logout
                 </button>
@@ -126,9 +145,9 @@ export default function DashboardPage() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 p-8">
+        <main className={`flex-1 p-8 transition-all duration-700 ease-in-out ${animationClass}`}>
           {/* System Title */}
-          <div className="mb-8">
+          <div className="mb-8 animate-fade-in-up">
             <h1 className="text-2xl font-bold text-[#1A1F36]">ELROI Predictive | System Overview</h1>
             <p className="text-gray-600 text-sm">Model v2.3 (TCN Active) · Confidence 94% · Last Update 11:22 AM</p>
           </div>
@@ -140,7 +159,7 @@ export default function DashboardPage() {
             {kpiData.map((kpi, index) => (
               <div 
                 key={index}
-                className={`${kpi.bgColor} rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer`}
+                className={`${kpi.bgColor} rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer transform hover:-translate-y-1 ${cardAnimationClasses[index]} transition-all duration-700 ease-in-out`}
                 style={{ borderRadius: '14px', boxShadow: '0 4px 10px rgba(0,0,0,0.08)' }}
               >
                 <div className="flex items-center justify-between mb-4">
@@ -149,14 +168,14 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <h3 className="text-white text-sm mb-1">{kpi.title}</h3>
-                <p className={`text-4xl font-bold ${kpi.color}`}>{kpi.value}{kpi.unit}</p>
+                <p className={`text-4xl font-bold ${kpi.textColor} transition-transform duration-200 hover:scale-105`}>{kpi.value}{kpi.unit}</p>
                 <p className="text-white text-xs mt-2 opacity-80">{kpi.subtext}</p>
               </div>
             ))}
           </div>
 
           {/* Cooling Profile Analysis Section */}
-          <div className="bg-white rounded-xl p-8 mb-8 shadow-sm border border-[#DCE3F0]">
+          <div className="bg-white rounded-xl p-8 mb-8 shadow-sm border border-[#DCE3F0] transition-all duration-500 hover:shadow-md animate-fade-in-up delay-100">
             <div className="mb-6">
               <h2 className="text-[#1A1F36] text-xl font-bold mb-1">Cooling Profile — Current vs Predicted</h2>
               <p className="text-gray-500 text-sm">Data Cycle #145 | Updated 11:22 AM</p>
@@ -191,11 +210,11 @@ export default function DashboardPage() {
                   {/* Current data line */}
                   <div className="absolute inset-0 flex items-end">
                     <div className="w-full h-32 flex items-end">
-                      <div className="flex-1 h-16 bg-[#1E73BE] rounded-t"></div>
-                      <div className="flex-1 h-20 bg-[#1E73BE] rounded-t"></div>
-                      <div className="flex-1 h-24 bg-[#1E73BE] rounded-t"></div>
-                      <div className="flex-1 h-20 bg-[#1E73BE] rounded-t"></div>
-                      <div className="flex-1 h-16 bg-[#1E73BE] rounded-t"></div>
+                      <div className="flex-1 h-16 bg-[#1E73BE] rounded-t transition-all duration-500 hover:h-20"></div>
+                      <div className="flex-1 h-20 bg-[#1E73BE] rounded-t transition-all duration-500 hover:h-24"></div>
+                      <div className="flex-1 h-24 bg-[#1E73BE] rounded-t transition-all duration-500 hover:h-28"></div>
+                      <div className="flex-1 h-20 bg-[#1E73BE] rounded-t transition-all duration-500 hover:h-24"></div>
+                      <div className="flex-1 h-16 bg-[#1E73BE] rounded-t transition-all duration-500 hover:h-20"></div>
                     </div>
                   </div>
                   {/* Predicted data line */}
@@ -221,7 +240,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Alerts & Reporting Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-[#DCE3F0] overflow-hidden">
+          <div className="bg-white rounded-xl shadow-sm border border-[#DCE3F0] overflow-hidden transition-all duration-500 hover:shadow-md animate-fade-in-up delay-200">
             <div className="px-6 py-4 border-b border-[#DCE3F0]">
               <h2 className="text-[#1A1F36] text-xl font-bold">Recent Alerts & Sensor Logs</h2>
             </div>
@@ -238,20 +257,20 @@ export default function DashboardPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-[#DCE3F0]">
-                  <tr className="hover:bg-gray-50 cursor-pointer transition-colors">
+                  <tr className="hover:bg-gray-50 cursor-pointer transition-colors transform hover:-translate-y-0.5 duration-200">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#1A1F36]">Temperature</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">48.2°C</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">35°C</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <span className="inline-flex items-center">
-                        <span className="h-2 w-2 rounded-full bg-red-500 mr-2"></span>
+                        <span className="h-2 w-2 rounded-full bg-red-500 mr-2 animate-pulse"></span>
                         Alert
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">92%</td>
                     <td className="px-6 py-4 text-sm text-gray-500">Cooling delay detected</td>
                   </tr>
-                  <tr className="hover:bg-gray-50 cursor-pointer transition-colors">
+                  <tr className="hover:bg-gray-50 cursor-pointer transition-colors transform hover:-translate-y-0.5 duration-200">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#1A1F36]">Pressure</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2.1 bar</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2.5 bar</td>
@@ -264,7 +283,7 @@ export default function DashboardPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">96%</td>
                     <td className="px-6 py-4 text-sm text-gray-500">Stable</td>
                   </tr>
-                  <tr className="hover:bg-gray-50 cursor-pointer transition-colors">
+                  <tr className="hover:bg-gray-50 cursor-pointer transition-colors transform hover:-translate-y-0.5 duration-200">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#1A1F36]">Humidity</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">58%</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">65%</td>

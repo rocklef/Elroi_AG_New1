@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 
@@ -23,19 +24,24 @@ export default function Sidebar({ activeSection }) {
   ]
 
   return (
-    <div className="w-64 bg-[#0B1D42] flex flex-col justify-between py-6 px-4">
+    <div className="w-64 bg-[#0B1D42] flex flex-col justify-between py-6 px-4 transition-all duration-300 ease-in-out transform translate-x-0">
       {/* Top Section */}
-      <div>
+      <div className="transition-all duration-300 animate-fade-in-left">
         {/* Branding */}
-        <div className="px-3 pb-6 mb-6 border-b border-white/10">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-[#1E73BE] flex items-center justify-center">
-              <span className="text-white font-bold">E</span>
-            </div>
-            <div>
-              <h1 className="text-white text-sm font-bold">ELROI</h1>
-              <p className="text-gray-300 text-xs">Predictive Maintenance Console</p>
-            </div>
+        <div className="px-4 pb-6 mb-6 border-b border-white/10 transition-all duration-300">
+          <div className="flex items-center">
+            <Image
+              src="/logo.png"
+              alt="ELROI Automation"
+              width={120}
+              height={32}
+              priority
+              className="object-contain"
+              style={{
+                backgroundColor: 'transparent',
+                mixBlendMode: 'normal'
+              }}
+            />
           </div>
         </div>
 
@@ -47,7 +53,7 @@ export default function Sidebar({ activeSection }) {
                 <>
                   <button
                     onClick={() => setIsSensorsOpen(!isSensorsOpen)}
-                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm transition-all duration-200 cursor-pointer ${
+                    className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-sm transition-all duration-200 cursor-pointer transform hover:translate-x-1 ${
                       activeSection === item.id 
                         ? 'bg-[#E6EEFF] text-[#1E73BE]' 
                         : 'text-gray-300 hover:bg-white/10'
@@ -69,30 +75,28 @@ export default function Sidebar({ activeSection }) {
                   </button>
                   
                   {/* Submenu for Sensors */}
-                  {isSensorsOpen && (
-                    <div className="ml-8 mt-1 space-y-1">
-                      {sensorItems.map((sensor) => (
-                        <Link
-                          key={sensor.id}
-                          href={sensor.href}
-                          className={`block px-4 py-2 text-sm rounded-lg transition-colors ${
-                            pathname === sensor.href
-                              ? 'bg-[#E6EEFF] text-[#1E73BE]'
-                              : 'text-gray-300 hover:bg-white/10'
-                          }`}
-                        >
-                          {sensor.label}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
+                  <div className={`ml-8 mt-1 space-y-1 transition-all duration-300 ease-in-out overflow-hidden ${isSensorsOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                    {sensorItems.map((sensor) => (
+                      <Link
+                        key={sensor.id}
+                        href={sensor.href}
+                        className={`block px-4 py-2 text-sm rounded-lg transition-all duration-200 transform hover:translate-x-1 ${
+                          pathname === sensor.href
+                            ? 'bg-[#E6EEFF] text-[#1E73BE]' 
+                            : 'text-gray-300 hover:bg-white/10'
+                        }`}
+                      >
+                        {sensor.label}
+                      </Link>
+                    ))}
+                  </div>
                 </>
               ) : (
                 <Link
                   href={item.href}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm transition-all duration-200 ${
+                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg text-sm transition-all duration-200 transform hover:translate-x-1 ${
                     activeSection === item.id
-                      ? 'bg-[#E6EEFF] text-[#1E73BE]'
+                      ? 'bg-[#E6EEFF] text-[#1E73BE]' 
                       : 'text-gray-300 hover:bg-white/10'
                   }`}
                 >
@@ -108,14 +112,14 @@ export default function Sidebar({ activeSection }) {
       </div>
 
       {/* Bottom Section - User Profile */}
-      <div className="px-3 pt-6 border-t border-white/10">
+      <div className="px-3 pt-6 border-t border-white/10 transition-all duration-300 animate-fade-in-left delay-100">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-full bg-white border border-[#1E73BE] flex items-center justify-center">
+          <div className="w-10 h-10 rounded-full bg-white border border-[#1E73BE] flex items-center justify-center transition-transform duration-300 hover:scale-110 transform hover:brightness-110">
             <span className="text-[#1E73BE] text-sm font-semibold">JD</span>
           </div>
           <div>
-            <p className="text-white text-sm font-medium">John Doe</p>
-            <p className="text-gray-400 text-xs">Engineer</p>
+            <p className="text-white text-sm font-medium transition-all duration-300">John Doe</p>
+            <p className="text-gray-400 text-xs transition-all duration-300">Engineer</p>
           </div>
         </div>
       </div>

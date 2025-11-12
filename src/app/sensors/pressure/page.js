@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
@@ -8,6 +8,30 @@ import Sidebar from '@/components/Sidebar'
 export default function PressureSensorPage() {
   const [user, setUser] = useState(null)
   const router = useRouter()
+  const [animationClass, setAnimationClass] = useState('opacity-0 translate-y-4')
+  const [cardAnimationClasses, setCardAnimationClasses] = useState(['opacity-0 translate-y-4', 'opacity-0 translate-y-4', 'opacity-0 translate-y-4'])
+
+  useEffect(() => {
+    // Staggered card animations
+    const timers = [200, 300, 400].map((delay, index) => {
+      return setTimeout(() => {
+        setCardAnimationClasses(prev => {
+          const newClasses = [...prev]
+          newClasses[index] = 'opacity-100 translate-y-0'
+          return newClasses
+        })
+      }, delay)
+    })
+
+    // Trigger entrance animation
+    setTimeout(() => {
+      setAnimationClass('opacity-100 translate-y-0')
+    }, 100)
+
+    return () => {
+      timers.forEach(timer => clearTimeout(timer))
+    }
+  }, [])
 
   // Mock data for pressure readings
   const pressureData = {
@@ -31,11 +55,11 @@ export default function PressureSensorPage() {
           <div className="flex items-center justify-between px-8 h-full">
             <h1 className="text-white text-xl font-bold">Pressure Sensors</h1>
             <div className="flex items-center space-x-6">
-              <button className="relative p-2 text-gray-300 hover:text-white transition-colors cursor-pointer">
+              <button className="relative p-2 text-gray-300 hover:text-white transition-colors cursor-pointer transform hover:scale-105 duration-200">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                 </svg>
-                <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500"></span>
+                <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
               </button>
               <div className="flex items-center text-sm text-gray-300">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -44,7 +68,7 @@ export default function PressureSensorPage() {
                 <span>11:22 AM</span>
               </div>
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 rounded-full bg-white border border-[#1E73BE] flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-white border border-[#1E73BE] flex items-center justify-center transform hover:scale-105 duration-200">
                   <span className="text-[#1E73BE] text-sm font-semibold">JD</span>
                 </div>
                 <button 
@@ -53,7 +77,7 @@ export default function PressureSensorPage() {
                     router.push('/login')
                     router.refresh()
                   }}
-                  className="text-white text-sm font-medium hover:text-[#1E73BE] transition-colors cursor-pointer"
+                  className="text-white text-sm font-medium hover:text-[#1E73BE] transition-colors cursor-pointer transform hover:scale-105 duration-200"
                 >
                   Logout
                 </button>
@@ -63,9 +87,9 @@ export default function PressureSensorPage() {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 p-8">
+        <main className={`flex-1 p-8 transition-all duration-700 ease-in-out ${animationClass}`}>
           {/* Page Title */}
-          <div className="mb-8">
+          <div className="mb-8 animate-fade-in-up">
             <h1 className="text-2xl font-bold text-[#1A1F36]">Pressure Monitoring</h1>
             <p className="text-gray-600 text-sm">Real-time pressure readings and system diagnostics</p>
           </div>
@@ -75,7 +99,7 @@ export default function PressureSensorPage() {
           {/* Pressure Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {/* Current Pressure Card */}
-            <div className="bg-[#F7F9FC] rounded-xl border border-[#D3D9E3] shadow-sm p-6 transition-all duration-200 hover:bg-[#F1F4FA] hover:transform hover:translate-y-[-2px] hover:shadow-md">
+            <div className={`bg-[#F7F9FC] rounded-xl border border-[#D3D9E3] shadow-sm p-6 transition-all duration-300 hover:bg-[#F1F4FA] hover:transform hover:translate-y-[-2px] hover:shadow-md transform hover:-translate-y-1 ${cardAnimationClasses[0]} transition-all duration-700 ease-in-out`}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-[#1A1F36] text-lg font-bold">Current Pressure</h3>
                 <div className="p-2 rounded-lg bg-white bg-opacity-20">
@@ -84,12 +108,12 @@ export default function PressureSensorPage() {
                   </svg>
                 </div>
               </div>
-              <p className="text-4xl font-bold text-[#0056D6] mb-2">{pressureData.current} bar</p>
+              <p className="text-4xl font-bold text-[#0056D6] mb-2 transition-transform duration-200 hover:scale-105">{pressureData.current} bar</p>
               <p className="text-gray-500 text-sm">Updated {pressureData.lastUpdate}</p>
             </div>
 
             {/* Target Pressure Card */}
-            <div className="bg-[#F7F9FC] rounded-xl border border-[#D3D9E3] shadow-sm p-6 transition-all duration-200 hover:bg-[#F1F4FA] hover:transform hover:translate-y-[-2px] hover:shadow-md">
+            <div className={`bg-[#F7F9FC] rounded-xl border border-[#D3D9E3] shadow-sm p-6 transition-all duration-300 hover:bg-[#F1F4FA] hover:transform hover:translate-y-[-2px] hover:shadow-md transform hover:-translate-y-1 ${cardAnimationClasses[1]} transition-all duration-700 ease-in-out`}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-[#1A1F36] text-lg font-bold">Target Pressure</h3>
                 <div className="p-2 rounded-lg bg-white bg-opacity-20">
@@ -98,12 +122,12 @@ export default function PressureSensorPage() {
                   </svg>
                 </div>
               </div>
-              <p className="text-4xl font-bold text-[#0056D6] mb-2">{pressureData.target} bar</p>
+              <p className="text-4xl font-bold text-[#0056D6] mb-2 transition-transform duration-200 hover:scale-105">{pressureData.target} bar</p>
               <p className="text-gray-500 text-sm">System operating range</p>
             </div>
 
             {/* Stability Rate Card */}
-            <div className="bg-[#F7F9FC] rounded-xl border border-[#D3D9E3] shadow-sm p-6 transition-all duration-200 hover:bg-[#F1F4FA] hover:transform hover:translate-y-[-2px] hover:shadow-md">
+            <div className={`bg-[#F7F9FC] rounded-xl border border-[#D3D9E3] shadow-sm p-6 transition-all duration-300 hover:bg-[#F1F4FA] hover:transform hover:translate-y-[-2px] hover:shadow-md transform hover:-translate-y-1 ${cardAnimationClasses[2]} transition-all duration-700 ease-in-out`}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-[#1A1F36] text-lg font-bold">Stability Rate</h3>
                 <div className="p-2 rounded-lg bg-white bg-opacity-20">
@@ -112,13 +136,13 @@ export default function PressureSensorPage() {
                   </svg>
                 </div>
               </div>
-              <p className="text-4xl font-bold text-[#0056D6] mb-2">{pressureData.stability}%</p>
+              <p className="text-4xl font-bold text-[#0056D6] mb-2 transition-transform duration-200 hover:scale-105">{pressureData.stability}%</p>
               <p className="text-gray-500 text-sm">Pressure consistency level</p>
             </div>
           </div>
 
           {/* Pressure Chart */}
-          <div className="bg-white rounded-xl p-8 shadow-sm border border-[#D3D9E3] mb-8">
+          <div className="bg-white rounded-xl p-8 shadow-sm border border-[#D3D9E3] mb-8 transition-all duration-500 hover:shadow-md animate-fade-in-up delay-100">
             <div className="mb-6">
               <h2 className="text-[#1A1F36] text-xl font-bold mb-1">Pressure Profile — System Dynamics</h2>
               <p className="text-gray-500 text-sm">Data Cycle #145 | Updated {pressureData.lastUpdate}</p>
@@ -153,11 +177,11 @@ export default function PressureSensorPage() {
                   {/* Current data line */}
                   <div className="absolute inset-0 flex items-end">
                     <div className="w-full h-32 flex items-end">
-                      <div className="flex-1 h-16 bg-[#1E73BE] rounded-t"></div>
-                      <div className="flex-1 h-20 bg-[#1E73BE] rounded-t"></div>
-                      <div className="flex-1 h-24 bg-[#1E73BE] rounded-t"></div>
-                      <div className="flex-1 h-20 bg-[#1E73BE] rounded-t"></div>
-                      <div className="flex-1 h-16 bg-[#1E73BE] rounded-t"></div>
+                      <div className="flex-1 h-16 bg-[#1E73BE] rounded-t transition-all duration-500 hover:h-20"></div>
+                      <div className="flex-1 h-20 bg-[#1E73BE] rounded-t transition-all duration-500 hover:h-24"></div>
+                      <div className="flex-1 h-24 bg-[#1E73BE] rounded-t transition-all duration-500 hover:h-28"></div>
+                      <div className="flex-1 h-20 bg-[#1E73BE] rounded-t transition-all duration-500 hover:h-24"></div>
+                      <div className="flex-1 h-16 bg-[#1E73BE] rounded-t transition-all duration-500 hover:h-20"></div>
                     </div>
                   </div>
                   {/* Predicted data line */}
@@ -183,7 +207,7 @@ export default function PressureSensorPage() {
           </div>
 
           {/* Alerts Section */}
-          <div className="bg-[#F7F9FC] rounded-xl shadow-sm border border-[#D3D9E3] overflow-hidden">
+          <div className="bg-[#F7F9FC] rounded-xl shadow-sm border border-[#D3D9E3] overflow-hidden transition-all duration-500 hover:shadow-md animate-fade-in-up delay-200">
             <div className="px-6 py-4 border-b border-[#D3D9E3]">
               <h2 className="text-[#1A1F36] text-xl font-bold">Pressure Alerts</h2>
             </div>
@@ -199,7 +223,7 @@ export default function PressureSensorPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-[#F7F9FC] divide-y divide-[#D3D9E3]">
-                  <tr className="hover:bg-[#F1F4FA] cursor-pointer transition-colors">
+                  <tr className="hover:bg-[#F1F4FA] cursor-pointer transition-all duration-200 transform hover:-translate-y-0.5">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">11:05 AM</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#1A1F36]">2.1 bar</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2.5 bar</td>
@@ -211,7 +235,7 @@ export default function PressureSensorPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#1E73BE]">Stable</td>
                   </tr>
-                  <tr className="hover:bg-[#F1F4FA] cursor-pointer transition-colors">
+                  <tr className="hover:bg-[#F1F4FA] cursor-pointer transition-all duration-200 transform hover:-translate-y-0.5">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">10:35 AM</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#1A1F36]">2.3 bar</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2.5 bar</td>
@@ -223,7 +247,7 @@ export default function PressureSensorPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-[#1E73BE]">Stable</td>
                   </tr>
-                  <tr className="hover:bg-[#F1F4FA] cursor-pointer transition-colors">
+                  <tr className="hover:bg-[#F1F4FA] cursor-pointer transition-all duration-200 transform hover:-translate-y-0.5">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">10:05 AM</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#1A1F36]">2.4 bar</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2.5 bar</td>
