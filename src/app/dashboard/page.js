@@ -8,8 +8,10 @@ import Sidebar from '@/components/Sidebar'
 export default function DashboardPage() {
   const [user, setUser] = useState(null)
   const router = useRouter()
-  const [animationClass, setAnimationClass] = useState('opacity-0 translate-y-4')
-  const [cardAnimationClasses, setCardAnimationClasses] = useState(['opacity-0 translate-y-4', 'opacity-0 translate-y-4', 'opacity-0 translate-y-4'])
+  const [cardAnimationClasses, setCardAnimationClasses] = useState([
+    'opacity-0 translate-y-4', 'opacity-0 translate-y-4', 'opacity-0 translate-y-4',
+    'opacity-0 translate-y-4', 'opacity-0 translate-y-4'
+  ])
 
   useEffect(() => {
     const checkUser = async () => {
@@ -23,7 +25,6 @@ export default function DashboardPage() {
 
     checkUser()
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
         router.push('/login')
@@ -32,13 +33,8 @@ export default function DashboardPage() {
       }
     })
 
-    // Trigger entrance animation
-    setTimeout(() => {
-      setAnimationClass('opacity-100 translate-y-0')
-    }, 100)
-
     // Staggered card animations
-    const timers = [200, 300, 400].map((delay, index) => {
+    const timers = [100, 200, 300, 400, 500].map((delay, index) => {
       return setTimeout(() => {
         setCardAnimationClasses(prev => {
           const newClasses = [...prev]
@@ -55,16 +51,17 @@ export default function DashboardPage() {
   }, [router])
 
   if (!user) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    return <div className="min-h-screen flex items-center justify-center bg-[#F7F9FC]">Loading...</div>
   }
 
-  // KPI Data with original colors
-  const kpiData = [
+  // 5 Parameters - Keep existing colors, update names
+  const parameters = [
     {
-      title: 'Current Temperature',
+      id: 'temperature',
+      title: 'Temperature',
       value: '44.5',
       unit: '°C',
-      subtext: 'Δ +0.8°C since 10:20 AM',
+      subtext: 'Δ +0.8°C since last update',
       textColor: 'text-white',
       bgColor: 'bg-[#1E73BE]',
       icon: (
@@ -74,10 +71,11 @@ export default function DashboardPage() {
       )
     },
     {
-      title: 'Target Temperature',
-      value: '35.0',
-      unit: '°C',
-      subtext: 'Stabilization ETA 2h 45m',
+      id: 'pressure',
+      title: 'Pressure',
+      value: '2.1',
+      unit: ' bar',
+      subtext: 'Δ −0.2 predicted',
       textColor: 'text-white',
       bgColor: 'bg-[#E87533]',
       icon: (
@@ -87,10 +85,11 @@ export default function DashboardPage() {
       )
     },
     {
-      title: 'Time to Target',
-      value: '2:45:00',
-      unit: '',
-      subtext: 'Confidence 94%',
+      id: 'humidity',
+      title: 'Humidity',
+      value: '58',
+      unit: '%',
+      subtext: 'Trending upward',
       textColor: 'text-white',
       bgColor: 'bg-[#1E8D8D]',
       icon: (
@@ -98,206 +97,125 @@ export default function DashboardPage() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       )
+    },
+    {
+      id: 'vibration',
+      title: 'Vibration',
+      value: '2.3',
+      unit: ' mm/s',
+      subtext: 'RMS velocity',
+      textColor: 'text-white',
+      bgColor: 'bg-[#7B68EE]',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      )
+    },
+    {
+      id: 'add',
+      title: 'Add Parameter',
+      value: null,
+      unit: '',
+      subtext: 'Configure new sensor',
+      textColor: 'text-gray-600',
+      bgColor: 'bg-white',
+      isDashed: true,
+      icon: null
     }
   ]
 
+  const handleCardClick = (param) => {
+    if (param.isDashed) {
+      console.log('Open modal to add parameter')
+    } else {
+      // Navigate to parameter detail page
+      router.push(`/dashboard/${param.id}`)
+    }
+  }
+
   return (
     <div className="flex min-h-screen bg-[#F7F9FC]">
-      {/* Left Sidebar */}
       <Sidebar activeSection="dashboard" />
 
-      {/* Main Dashboard Area */}
       <div className="flex-1 flex flex-col">
-        {/* Top Bar */}
-        <header className="bg-[#0B1D42] h-[70px] border-b border-gray-200">
-          <div className="flex items-center justify-between px-8 h-full">
-            <h1 className="text-white text-xl font-bold">Dashboard</h1>
-            <div className="flex items-center space-x-6">
-              <button className="relative p-2 text-gray-300 hover:text-white transition-colors cursor-pointer transform hover:scale-105 duration-200">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                </svg>
-                <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
-              </button>
-              <div className="flex items-center text-sm text-gray-300">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>11:22 AM</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 rounded-full bg-white border border-[#1E73BE] flex items-center justify-center transform hover:scale-105 duration-200">
-                  <span className="text-[#1E73BE] text-sm font-semibold">JD</span>
-                </div>
-                <button 
-                  onClick={async () => {
-                    await supabase.auth.signOut()
-                    router.push('/login')
-                    router.refresh()
-                  }}
-                  className="text-white text-sm font-medium hover:text-[#1E73BE] transition-colors cursor-pointer transform hover:scale-105 duration-200"
-                >
-                  Logout
-                </button>
-              </div>
+        {/* Main Content - ONLY 5 Cards */}
+        <main className="flex-1 p-8">
+          <div className="max-w-7xl mx-auto">
+            {/* Simple Text Heading */}
+            <h1 className="text-4xl font-bold text-[#081440] mb-2">System Overview</h1>
+            
+            {/* Page Header */}
+            <div className="mb-8">
+              <p className="text-gray-600 text-sm">Monitor and manage critical system metrics in real-time</p>
             </div>
-          </div>
-        </header>
 
-        {/* Main Content */}
-        <main className={`flex-1 p-8 transition-all duration-700 ease-in-out ${animationClass}`}>
-          {/* System Title */}
-          <div className="mb-8 animate-fade-in-up">
-            <h1 className="text-2xl font-bold text-[#1A1F36]">ELROI Predictive | System Overview</h1>
-            <p className="text-gray-600 text-sm">Model v2.3 (TCN Active) · Confidence 94% · Last Update 11:22 AM</p>
-          </div>
-
-          <div className="border-b border-gray-200 mb-8"></div>
-
-          {/* KPI Cards Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {kpiData.map((kpi, index) => (
-              <div 
-                key={index}
-                className={`${kpi.bgColor} rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer transform hover:-translate-y-1 ${cardAnimationClasses[index]} transition-all duration-700 ease-in-out`}
-                style={{ borderRadius: '14px', boxShadow: '0 4px 10px rgba(0,0,0,0.08)' }}
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <div className="p-2 rounded-lg bg-white bg-opacity-20">
-                    {kpi.icon}
+            {/* Perfect 3+2 Grid - 4 cards then centered Add Parameter */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+              {/* First 4 cards - evenly distributed */}
+              {parameters.slice(0, 4).map((param, index) => (
+                <div
+                  key={param.id}
+                  onClick={() => handleCardClick(param)}
+                  className={`${param.bgColor} rounded-xl p-6 cursor-pointer transform transition-all duration-300 ease-out hover:scale-105 ${cardAnimationClasses[index]}`}
+                  style={{ 
+                    borderRadius: '16px', 
+                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
+                    minHeight: '220px',
+                    transition: 'all 0.3s ease-out'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.2)'
+                    e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.1)'
+                    e.currentTarget.style.transform = 'translateY(0) scale(1)'
+                  }}
+                >
+                  <div className="mb-6">
+                    <h3 className="text-white text-base font-semibold mb-2">{param.title}</h3>
+                    <div className="w-12 h-1 bg-white opacity-30 rounded-full"></div>
                   </div>
+                  <p className={`text-5xl font-bold ${param.textColor} mb-3`}>
+                    {param.value}<span className="text-2xl ml-1">{param.unit}</span>
+                  </p>
+                  <p className="text-white text-sm opacity-90">{param.subtext}</p>
                 </div>
-                <h3 className="text-white text-sm mb-1">{kpi.title}</h3>
-                <p className={`text-4xl font-bold ${kpi.textColor} transition-transform duration-200 hover:scale-105`}>{kpi.value}{kpi.unit}</p>
-                <p className="text-white text-xs mt-2 opacity-80">{kpi.subtext}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Cooling Profile Analysis Section */}
-          <div className="bg-white rounded-xl p-8 mb-8 shadow-sm border border-[#DCE3F0] transition-all duration-500 hover:shadow-md animate-fade-in-up delay-100">
-            <div className="mb-6">
-              <h2 className="text-[#1A1F36] text-xl font-bold mb-1">Cooling Profile — Current vs Predicted</h2>
-              <p className="text-gray-500 text-sm">Data Cycle #145 | Updated 11:22 AM</p>
+              ))}
             </div>
             
-            {/* Chart Placeholder */}
-            <div className="bg-white rounded-lg h-64 mb-4 flex items-center justify-center border border-[#DCE3F0]">
-              <div className="text-center w-full px-8">
-                <div className="flex justify-between items-center mb-4">
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-[#1E73BE] mr-2"></div>
-                    <span className="text-xs text-gray-600">Current Data</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-[#00A3B4] mr-2"></div>
-                    <span className="text-xs text-gray-600">Predicted Cooling</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 rounded-full bg-[#FF4B4B] mr-2"></div>
-                    <span className="text-xs text-gray-600">Threshold</span>
-                  </div>
-                </div>
-                <div className="relative w-full h-40">
-                  {/* Grid lines */}
-                  <div className="absolute inset-0 flex">
-                    {[...Array(5)].map((_, i) => (
-                      <div key={i} className="flex-1 border-r border-[#E4E9F2] last:border-r-0"></div>
-                    ))}
-                  </div>
-                  {/* Threshold line */}
-                  <div className="absolute top-1/3 left-0 right-0 h-0.5 bg-[#FF4B4B]"></div>
-                  {/* Current data line */}
-                  <div className="absolute inset-0 flex items-end">
-                    <div className="w-full h-32 flex items-end">
-                      <div className="flex-1 h-16 bg-[#1E73BE] rounded-t transition-all duration-500 hover:h-20"></div>
-                      <div className="flex-1 h-20 bg-[#1E73BE] rounded-t transition-all duration-500 hover:h-24"></div>
-                      <div className="flex-1 h-24 bg-[#1E73BE] rounded-t transition-all duration-500 hover:h-28"></div>
-                      <div className="flex-1 h-20 bg-[#1E73BE] rounded-t transition-all duration-500 hover:h-24"></div>
-                      <div className="flex-1 h-16 bg-[#1E73BE] rounded-t transition-all duration-500 hover:h-20"></div>
+            {/* Centered Add Parameter Button */}
+            <div className="flex justify-center">
+              <div className="w-full md:w-1/2 lg:w-1/4">
+                {/* Add Parameter Card - centered */}
+                <div
+                  onClick={() => handleCardClick(parameters[4])}
+                  className={`${parameters[4].bgColor} rounded-xl p-6 border-2 border-dashed border-gray-300 cursor-pointer transform transition-all duration-300 ease-out hover:scale-105 hover:border-gray-400 ${cardAnimationClasses[4]}`}
+                  style={{ 
+                    borderRadius: '16px',
+                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                    minHeight: '220px',
+                    transition: 'all 0.3s ease-out'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.15)'
+                    e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.boxShadow = '0 4px 20px rgba(0, 0, 0, 0.08)'
+                    e.currentTarget.style.transform = 'translateY(0) scale(1)'
+                  }}
+                >
+                  <div className="flex flex-col items-center justify-center h-full min-h-[170px]">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center mb-4 transition-transform duration-300 hover:scale-110 hover:rotate-90">
+                      <span className="text-4xl text-gray-500 font-light">+</span>
                     </div>
+                    <h3 className="text-gray-800 text-lg font-bold mb-2">{parameters[4].title}</h3>
+                    <p className="text-gray-600 text-sm">{parameters[4].subtext}</p>
                   </div>
-                  {/* Predicted data line */}
-                  <div className="absolute inset-0 flex items-end">
-                    <div className="w-full h-32 flex items-end">
-                      <div className="flex-1 h-12 border-t-2 border-dashed border-[#00A3B4]"></div>
-                      <div className="flex-1 h-16 border-t-2 border-dashed border-[#00A3B4]"></div>
-                      <div className="flex-1 h-20 border-t-2 border-dashed border-[#00A3B4]"></div>
-                      <div className="flex-1 h-24 border-t-2 border-dashed border-[#00A3B4]"></div>
-                      <div className="flex-1 h-20 border-t-2 border-dashed border-[#00A3B4]"></div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex justify-between text-xs text-gray-500 mt-2">
-                  <span>10:00</span>
-                  <span>10:30</span>
-                  <span>11:00</span>
-                  <span>11:30</span>
-                  <span>12:00</span>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Alerts & Reporting Table */}
-          <div className="bg-white rounded-xl shadow-sm border border-[#DCE3F0] overflow-hidden transition-all duration-500 hover:shadow-md animate-fade-in-up delay-200">
-            <div className="px-6 py-4 border-b border-[#DCE3F0]">
-              <h2 className="text-[#1A1F36] text-xl font-bold">Recent Alerts & Sensor Logs</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-[#DCE3F0]">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Sensor</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Threshold</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Confidence</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Insight</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-[#DCE3F0]">
-                  <tr className="hover:bg-gray-50 cursor-pointer transition-colors transform hover:-translate-y-0.5 duration-200">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#1A1F36]">Temperature</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">48.2°C</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">35°C</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className="inline-flex items-center">
-                        <span className="h-2 w-2 rounded-full bg-red-500 mr-2 animate-pulse"></span>
-                        Alert
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">92%</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">Cooling delay detected</td>
-                  </tr>
-                  <tr className="hover:bg-gray-50 cursor-pointer transition-colors transform hover:-translate-y-0.5 duration-200">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#1A1F36]">Pressure</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2.1 bar</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">2.5 bar</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className="inline-flex items-center">
-                        <span className="h-2 w-2 rounded-full bg-green-500 mr-2"></span>
-                        Normal
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">96%</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">Stable</td>
-                  </tr>
-                  <tr className="hover:bg-gray-50 cursor-pointer transition-colors transform hover:-translate-y-0.5 duration-200">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#1A1F36]">Humidity</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">58%</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">65%</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <span className="inline-flex items-center">
-                        <span className="h-2 w-2 rounded-full bg-yellow-500 mr-2"></span>
-                        Watch
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">88%</td>
-                    <td className="px-6 py-4 text-sm text-gray-500">Slight variation</td>
-                  </tr>
-                </tbody>
-              </table>
             </div>
           </div>
         </main>
