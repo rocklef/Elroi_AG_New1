@@ -152,8 +152,15 @@ export default function TemperaturePage() {
   const [analysisData, setAnalysisData] = useState(null)
   const [insights, setInsights] = useState([])
   const [isProcessing, setIsProcessing] = useState(false)
-  const [showAnalysisTransition, setShowAnalysisTransition] = useState(false)
   const [showFullReport, setShowFullReport] = useState(false)
+  const [showAnalysisTransition, setShowAnalysisTransition] = useState(false)
+  const [currentRowIndex, setCurrentRowIndex] = useState(0)
+  const [showAlertModal, setShowAlertModal] = useState(false)
+  const [alertEmail, setAlertEmail] = useState('')
+  const [alertLeadTime, setAlertLeadTime] = useState(10)
+  const [alertStatus, setAlertStatus] = useState('inactive')
+  const [showThresholdModal, setShowThresholdModal] = useState(false)
+  const [tempThresholdInput, setTempThresholdInput] = useState('')
   const [uploadForm, setUploadForm] = useState({ 
     param1: 'Time: 00:00 to 24:59 | Sensor: Temp-A1', 
     param2: 'Sample Rate: Every 5 seconds | Location: Zone-B', 
@@ -200,6 +207,79 @@ export default function TemperaturePage() {
     
     return () => clearInterval(interval)
   }, [])
+  
+  // Auto-cycle through temperature data every 5 seconds (for analysis view)
+  useEffect(() => {
+    if (analysisData && analysisData.current.length > 0) {
+      const interval = setInterval(() => {
+        setCurrentRowIndex(prev => {
+          const nextIndex = prev + 1
+          // Loop back to start when reaching the end
+          return nextIndex >= analysisData.current.length ? 0 : nextIndex
+        })
+      }, 5000) // Update every 5 seconds to match Excel data intervals
+      
+      return () => clearInterval(interval)
+    } else {
+      setCurrentRowIndex(0) // Reset when no data
+    }
+  }, [analysisData])
+  
+  // Load alert configuration on mount
+  useEffect(() => {
+    const savedAlertConfig = localStorage.getItem('tempAlertConfig')
+    if (savedAlertConfig) {
+      const config = JSON.parse(savedAlertConfig)
+      setAlertEmail(config.email || '')
+      setAlertLeadTime(config.leadTime || 10)
+      setAlertStatus(config.email ? 'active' : 'inactive')
+    }
+  }, [])
+  
+  // Save alert settings
+  const handleSaveAlertSettings = () => {
+    if (!alertEmail || !alertEmail.includes('@')) {
+      alert('Please enter a valid email address')
+      return
+    }
+    
+    const config = {
+      email: alertEmail,
+      leadTime: alertLeadTime,
+      enabled: true
+    }
+    
+    localStorage.setItem('tempAlertConfig', JSON.stringify(config))
+    setAlertStatus('active')
+    setShowAlertModal(false)
+    alert('✅ Alert settings saved successfully! Alerts are now active.')
+  }
+  
+  // Handle threshold change and sync with settings
+  const handleSetThreshold = () => {
+    const newThreshold = parseFloat(tempThresholdInput)
+    if (isNaN(newThreshold) || newThreshold <= 0) {
+      alert('Please enter a valid threshold temperature')
+      return
+    }
+    
+    // Update local state
+    setUserThreshold(newThreshold)
+    setSeries(prev => ({ ...prev, threshold: newThreshold }))
+    
+    // Save to localStorage (settings page also reads from here)
+    const savedSettings = localStorage.getItem('systemSettings')
+    const settings = savedSettings ? JSON.parse(savedSettings) : {}
+    settings.thresholdTemp = newThreshold
+    localStorage.setItem('systemSettings', JSON.stringify(settings))
+    
+    // Trigger storage event for other components
+    window.dispatchEvent(new Event('storage'))
+    
+    setShowThresholdModal(false)
+    setTempThresholdInput('')
+    alert(`✅ Threshold updated to ${newThreshold.toFixed(1)}°C successfully!`)
+  }
 
   const parseCsv = (text) => {
     const [header, ...lines] = text.trim().split(/\r?\n/)
@@ -382,7 +462,6 @@ export default function TemperaturePage() {
     if (!uploadedData) return
     
     setIsProcessing(true)
-    setShowAnalysisTransition(true)
     
     // Use setTimeout to prevent UI blocking
     setTimeout(() => {
@@ -421,7 +500,6 @@ export default function TemperaturePage() {
       })
       setInsights(insights)
       setIsProcessing(false)
-      setTimeout(() => setShowAnalysisTransition(false), 600)
     }, 100)
   }
 
@@ -736,10 +814,10 @@ export default function TemperaturePage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-6 animate-fadeIn">
+                  <div className="space-y-6">
                     {/* Stats Cards Row - Show ONLY in analysis results */}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {/* Stat card 1 - Current Temperature */}
+                      {/* Stat card 1 - Current Temperature (Auto-cycling) */}
                       <div className="bg-gradient-to-br from-blue-200 via-blue-100 to-cyan-100 rounded-2xl p-6 shadow-xl border-2 border-blue-200 hover:shadow-2xl hover:scale-105 transition-all duration-300">
                         <div className="flex items-start justify-between mb-3">
                           <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-600 via-blue-700 to-cyan-700 flex items-center justify-center shadow-lg shadow-blue-500/60">
@@ -747,18 +825,21 @@ export default function TemperaturePage() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
                             </svg>
                           </div>
-                          <span className="text-xs font-bold px-3 py-1.5 bg-blue-600 text-white rounded-full shadow-md">First Entry</span>
+                          <span className="text-xs font-bold px-3 py-1.5 bg-blue-600 text-white rounded-full shadow-md animate-pulse">Live</span>
                         </div>
-                        <div className="text-xs font-bold text-blue-800 uppercase tracking-wide mb-2">Starting Temperature</div>
+                        <div className="text-xs font-bold text-blue-800 uppercase tracking-wide mb-2">Current Reading</div>
                         <div className="flex items-baseline space-x-2">
-                          <span className="text-5xl font-black text-blue-900">{analysisData.current[0]?.toFixed(1)}</span>
+                          <span className="text-5xl font-black text-blue-900 transition-all duration-500">{analysisData.current[currentRowIndex]?.toFixed(2)}</span>
                           <span className="text-2xl font-bold text-blue-700">°C</span>
                         </div>
-                        <div className="mt-3 flex items-center text-sm text-blue-700 font-semibold">
-                          <svg className="w-5 h-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                          </svg>
-                          <span>From uploaded data</span>
+                        <div className="mt-3 flex items-center justify-between">
+                          <div className="flex items-center text-sm text-blue-700 font-semibold">
+                            <svg className="w-5 h-5 mr-1 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span>Row {currentRowIndex + 1}/{analysisData.current.length}</span>
+                          </div>
+                          <span className="text-xs text-blue-600 font-bold">{analysisData.times[currentRowIndex]}</span>
                         </div>
                       </div>
 
@@ -964,6 +1045,19 @@ export default function TemperaturePage() {
                             <p className="text-2xl font-black text-emerald-900">{(analysisData.stats.max - analysisData.stats.min).toFixed(2)}°C</p>
                           </div>
                         </div>
+                        
+                        {/* Alert Button */}
+                        <div className="mt-4">
+                          <button
+                            onClick={() => setShowAlertModal(true)}
+                            className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 hover:from-orange-600 hover:via-red-600 hover:to-pink-600 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                          >
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                            </svg>
+                            <span>Configure Alert Settings</span>
+                          </button>
+                        </div>
                       </div>
                       
                       {/* Data Table Section - RIGHT SIDE - ALL ROWS */}
@@ -1152,23 +1246,281 @@ export default function TemperaturePage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="bg-gray-50 p-4 rounded-b-2xl border-t border-gray-200 flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="px-4 py-2 bg-gradient-to-r from-blue-100 to-cyan-100 rounded-lg border border-blue-200">
-                  <span className="text-xs font-bold text-blue-800">Total: {analysisData.times.length} entries</span>
+            <div className="bg-gray-50 p-4 rounded-b-2xl border-t border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-4">
+                  <div className="px-4 py-2 bg-gradient-to-r from-blue-100 to-cyan-100 rounded-lg border border-blue-200">
+                    <span className="text-xs font-bold text-blue-800">Total: {analysisData.times.length} entries</span>
+                  </div>
+                  <div className="px-4 py-2 bg-gradient-to-r from-red-100 to-orange-100 rounded-lg border border-red-200">
+                    <span className="text-xs font-bold text-red-800">Alerts: {analysisData.current.filter(t => t < series.threshold).length}</span>
+                  </div>
+                  <div className="px-4 py-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border border-green-200">
+                    <span className="text-xs font-bold text-green-800">Normal: {analysisData.current.filter(t => t >= series.threshold).length}</span>
+                  </div>
                 </div>
-                <div className="px-4 py-2 bg-gradient-to-r from-red-100 to-orange-100 rounded-lg border border-red-200">
-                  <span className="text-xs font-bold text-red-800">Alerts: {analysisData.current.filter(t => t < series.threshold).length}</span>
-                </div>
-                <div className="px-4 py-2 bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg border border-green-200">
-                  <span className="text-xs font-bold text-green-800">Normal: {analysisData.current.filter(t => t >= series.threshold).length}</span>
+                <button 
+                  onClick={() => setShowFullReport(false)}
+                  className="px-6 py-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-bold text-sm rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all shadow-lg"
+                >
+                  Close
+                </button>
+              </div>
+              
+              {/* Set Threshold Button */}
+              <button
+                onClick={() => {
+                  setTempThresholdInput(series.threshold.toString())
+                  setShowThresholdModal(true)
+                }}
+                className="w-full flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 hover:from-purple-600 hover:via-indigo-600 hover:to-blue-600 text-white font-bold text-lg rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                <span>Set Threshold Temperature</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Set Threshold Modal */}
+      {showThresholdModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 p-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                <h2 className="text-2xl font-black text-white">Set Threshold Temperature</h2>
+              </div>
+              <button
+                onClick={() => setShowThresholdModal(false)}
+                className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-all"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* Info */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 p-4 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-sm font-semibold text-blue-800">
+                    Set the threshold temperature for alerts. Temperature below this value will trigger warnings.
+                  </p>
                 </div>
               </div>
-              <button 
-                onClick={() => setShowFullReport(false)}
-                className="px-6 py-2 bg-gradient-to-r from-gray-600 to-gray-700 text-white font-bold text-sm rounded-lg hover:from-gray-700 hover:to-gray-800 transition-all shadow-lg"
+              
+              {/* Current Threshold Display */}
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-300 rounded-xl p-4">
+                <p className="text-xs font-bold text-gray-600 uppercase mb-2">Current Threshold</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-black text-gray-900">{series.threshold.toFixed(1)}</span>
+                  <span className="text-xl font-bold text-gray-700">°C</span>
+                </div>
+              </div>
+              
+              {/* Threshold Input */}
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2">New Threshold Temperature (°C)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={tempThresholdInput}
+                  onChange={(e) => setTempThresholdInput(e.target.value)}
+                  placeholder="Enter threshold (e.g., 31.7)"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-gray-900 text-lg font-bold focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all"
+                />
+              </div>
+              
+              {/* Preview */}
+              {tempThresholdInput && !isNaN(parseFloat(tempThresholdInput)) && (
+                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-200 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg className="w-5 h-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    <p className="text-sm font-bold text-purple-900">Preview:</p>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-3xl font-black text-purple-700">{parseFloat(tempThresholdInput).toFixed(1)}</span>
+                    <span className="text-lg font-bold text-purple-600">°C</span>
+                  </div>
+                  <p className="text-xs text-purple-700 mt-2 font-semibold">
+                    ⚠️ This will update the threshold across the entire system (Settings page included)
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="bg-gray-50 p-6 flex items-center justify-between gap-4">
+              <button
+                onClick={() => setShowThresholdModal(false)}
+                className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl transition-all"
               >
-                Close
+                Cancel
+              </button>
+              <button
+                onClick={handleSetThreshold}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                Apply Threshold
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Email Alert Settings Modal */}
+      {showAlertModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 p-6 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                <h2 className="text-2xl font-black text-white">Email Alert Settings</h2>
+              </div>
+              <button
+                onClick={() => setShowAlertModal(false)}
+                className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-all"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Modal Body */}
+            <div className="p-6 space-y-6">
+              {/* Warning Info */}
+              <div className="bg-gradient-to-r from-orange-50 to-yellow-50 border-l-4 border-orange-500 p-4 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-orange-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-sm font-semibold text-orange-800">
+                    Receive email alerts when temperature is approaching threshold
+                  </p>
+                </div>
+              </div>
+              
+              {/* Email Input */}
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2">Alert Email Address</label>
+                <input
+                  type="email"
+                  value={alertEmail}
+                  onChange={(e) => setAlertEmail(e.target.value)}
+                  placeholder="your-email@example.com"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl text-gray-900 focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
+                />
+              </div>
+              
+              {/* Lead Time Selection */}
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-3">Alert Lead Time (seconds)</label>
+                <p className="text-xs text-gray-600 mb-3">Send alert this many seconds before reaching threshold temperature</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <button
+                    onClick={() => setAlertLeadTime(5)}
+                    className={`px-4 py-3 rounded-xl font-bold transition-all ${
+                      alertLeadTime === 5
+                        ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    5 sec
+                  </button>
+                  <button
+                    onClick={() => setAlertLeadTime(10)}
+                    className={`px-4 py-3 rounded-xl font-bold transition-all ${
+                      alertLeadTime === 10
+                        ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    10 sec
+                  </button>
+                  <button
+                    onClick={() => setAlertLeadTime(15)}
+                    className={`px-4 py-3 rounded-xl font-bold transition-all ${
+                      alertLeadTime === 15
+                        ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    15 sec
+                  </button>
+                </div>
+              </div>
+              
+              {/* Alert Configuration Summary */}
+              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border-2 border-blue-200 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-sm font-bold text-gray-900">Alert Configuration:</p>
+                </div>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">Email:</span>
+                    <span className={`font-bold ${
+                      alertEmail ? 'text-blue-600' : 'text-red-600'
+                    }`}>
+                      {alertEmail || 'Not set'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">Lead Time:</span>
+                    <span className="font-bold text-orange-600">{alertLeadTime} seconds</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">Status:</span>
+                    <span className={`font-bold ${
+                      alertEmail ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {alertEmail ? '✓ Ready' : 'X Inactive'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Modal Footer */}
+            <div className="bg-gray-50 p-6 flex items-center justify-between gap-4">
+              <button
+                onClick={() => setShowAlertModal(false)}
+                className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold rounded-xl transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveAlertSettings}
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                Save Alert Settings
               </button>
             </div>
           </div>

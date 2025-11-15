@@ -17,9 +17,6 @@ export default function LoginPage() {
   const [isLogin, setIsLogin] = useState(true)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showOtp, setShowOtp] = useState(false)
-  const [otp, setOtp] = useState('')
-  const [verifyPhone, setVerifyPhone] = useState('')
   const [isTransitioning, setIsTransitioning] = useState(false)
   const router = useRouter()
 
@@ -58,28 +55,24 @@ export default function LoginPage() {
         await new Promise(resolve => setTimeout(resolve, 700))
         router.push('/dashboard')
       } else {
-        // Sign up - register with both email and phone
-        const formattedPhone = phoneNumber.startsWith('+91') 
-          ? phoneNumber 
-          : `+91${phoneNumber}`
-        
+        // Sign up - register with email and store phone as metadata (no verification)
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          phone: formattedPhone,
           options: {
             data: {
               full_name: name,
               alternate_email: alternateEmail,
+              phone_number: phoneNumber ? `+91${phoneNumber}` : null,
             }
           }
         })
         if (error) throw error
         
-        // Show OTP verification for phone sign-up
-        setShowOtp(true)
-        setVerifyPhone(formattedPhone)
-        setError('Enter the 6-digit OTP sent to your phone to verify')
+        // Redirect to dashboard (no OTP verification needed)
+        setIsTransitioning(true)
+        await new Promise(resolve => setTimeout(resolve, 700))
+        router.push('/dashboard')
       }
     } catch (error) {
       setError(error.message)
@@ -89,43 +82,6 @@ export default function LoginPage() {
     }
   }
 
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: verifyPhone,
-        token: otp,
-        type: 'sms',
-      })
-      if (error) throw error
-      
-      // OTP verified successfully, start transition and redirect to dashboard
-      setIsTransitioning(true)
-      await new Promise(resolve => setTimeout(resolve, 700))
-      router.push('/dashboard')
-    } catch (error) {
-      setError(error.message)
-      setIsTransitioning(false)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const resendOtp = async () => {
-    try {
-      const { error } = await supabase.auth.resend({ 
-        type: 'sms', 
-        phone: verifyPhone 
-      })
-      if (error) throw error
-      setError('OTP resent to your phone')
-    } catch (error) {
-      setError(error.message)
-    }
-  }
 
   const handleGoogleSignIn = async () => {
     try {
@@ -276,11 +232,11 @@ export default function LoginPage() {
                   </div>
                 )}
 
-                {/* Phone Number - Only for Sign Up */}
+                {/* Phone Number - Only for Sign Up (Optional) */}
                 {!isLogin && (
                   <div className="animate-in slide-in-from-top-2 fade-in duration-300 delay-150">
                     <label className="block text-xs font-bold text-[#060F30] uppercase tracking-wide mb-1.5">
-                      Phone Number (India)
+                      Phone Number (Optional)
                     </label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[#060F30] font-medium">+91</span>
@@ -293,12 +249,11 @@ export default function LoginPage() {
                         }}
                         placeholder="9876543210"
                         className="w-full pl-12 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:border-[#0071CE] focus:bg-white focus:ring-2 focus:ring-[#0071CE]/20 transition-all text-sm text-[#060F30] placeholder:text-[#9CA3AF]"
-                        required
                         maxLength="10"
                         pattern="[0-9]{10}"
                       />
                     </div>
-                    <p className="text-[10px] text-[#5B6C84] mt-1">10-digit Indian mobile number</p>
+                    <p className="text-[10px] text-[#5B6C84] mt-1">10-digit Indian mobile number (for contact purposes only)</p>
                   </div>
                 )}
 
@@ -389,56 +344,6 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              {/* OTP Verification - Only shown after phone sign-up */}
-              {showOtp && (
-                <div className="mt-4 p-4 bg-blue-50 border-2 border-[#0071CE] rounded-lg space-y-3 animate-in slide-in-from-top-2 fade-in duration-300">
-                  <div className="flex items-center space-x-2 mb-2">
-                    <svg className="h-5 w-5 text-[#0071CE]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                    </svg>
-                    <h3 className="text-sm font-bold text-[#060F30]">Verify Your Phone Number</h3>
-                  </div>
-                  
-                  <p className="text-xs text-[#5B6C84]">Enter the 6-digit OTP sent to <span className="font-bold text-[#060F30]">{verifyPhone}</span></p>
-                  
-                  <form onSubmit={handleVerifyOtp} className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-bold text-[#060F30] uppercase tracking-wide mb-1.5">
-                        OTP Code
-                      </label>
-                      <input
-                        type="text"
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                        placeholder="123456"
-                        maxLength={6}
-                        pattern="[0-9]{6}"
-                        className="w-full px-3 py-2.5 bg-white border-2 border-gray-200 rounded-lg focus:outline-none focus:border-[#0071CE] focus:bg-white focus:ring-2 focus:ring-[#0071CE]/20 transition-all text-lg text-center tracking-widest font-bold text-[#060F30] placeholder:text-[#9CA3AF]"
-                        required
-                      />
-                      <p className="text-[10px] text-[#5B6C84] mt-1">Enter the 6-digit code</p>
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <button
-                        type="submit"
-                        disabled={loading || otp.length !== 6}
-                        className="flex-1 bg-[#071135] hover:bg-[#0A1850] text-white font-bold py-2.5 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow-lg shadow-[#071135]/25 hover:shadow-xl hover:shadow-[#071135]/35 transform hover:-translate-y-0.5 active:scale-95 cursor-pointer"
-                      >
-                        {loading ? 'Verifying...' : 'Verify OTP'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={resendOtp}
-                        disabled={loading}
-                        className="bg-white hover:bg-gray-50 border-2 border-[#0071CE] text-[#0071CE] hover:text-[#00B4D8] font-semibold py-2.5 px-4 rounded-lg transition-all duration-200 text-xs shadow-sm hover:shadow-md cursor-pointer disabled:opacity-50"
-                      >
-                        Resend OTP
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              )}
 
               {/* Divider */}
               <div className="relative my-3">
