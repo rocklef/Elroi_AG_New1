@@ -182,6 +182,190 @@ body {
   transform: translateX(0);
   transition: opacity 0.7s ease-in-out, transform 0.7s ease-in-out;
 }
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #0B1630;
+  --primary-blue: #0B1630;
+  --primary-blue-dark: #081225;
+  --accent-blue: #2563eb;
+  --light-gray: #A8B3C6;
+  --muted-gray: #94a3b8;
+  --white: #ffffff;
+  --elroi-navy: #050A24;
+  --elroi-blue: #1E4DD8;
+  --elroi-blue-hover: #254BE9;
+  --elroi-text: #EAF0FF;
+  --elroi-sub: #B9C2DC;
+  --font-primary: 'Inter', 'Poppins', 'Segoe UI', Arial, sans-serif;
+  --font-mono: 'Geist Mono', monospace;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-elroi-navy: var(--elroi-navy);
+  --color-elroi-blue: var(--elroi-blue);
+  --color-elroi-blue-hover: var(--elroi-blue-hover);
+  --color-elroi-text: var(--elroi-text);
+  --color-elroi-sub: var(--elroi-sub);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: linear-gradient(135deg, #C5EAF3 0%, #DDF4F8 50%, #F7FCFE 100%);
+  color: var(--foreground);
+  font-family: var(--font-primary);
+  min-height: 100vh;
+}
+
+/* AI-style gradient background for all pages */
+.bg-ai-gradient {
+  background: linear-gradient(135deg, #C5EAF3 0%, #DDF4F8 50%, #F7FCFE 100%);
+  min-height: 100vh;
+}
+
+@keyframes ripple {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.animate-ripple {
+  position: absolute;
+  transform: scale(0);
+  animation: ripple 0.6s linear;
+}
+
+/* Custom glassmorphism effects */
+.glass-effect {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.glass-effect-dark {
+  background: rgba(7, 12, 46, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Custom gradients */
+.bg-gradient-elroi {
+  background: linear-gradient(180deg, #001233 0%, #001845 100%);
+}
+
+/* Hover effects */
+.hover-lift {
+  transition: all 0.3s ease-in-out;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(5, 10, 36, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 150, 255, 0.15);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 123, 255, 0.3);
+}
+
+/* Fade in up animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.7s ease-in-out;
+}
+
+/* Delay classes for staggered animations */
+.delay-100 {
+  animation-delay: 0.1s;
+}
+
+.delay-200 {
+  animation-delay: 0.2s;
+}
+
+.delay-300 {
+  animation-delay: 0.3s;
+}
+
+/* Fade in left animation */
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translate3d(-20px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-fade-in-left {
+  animation: fadeInLeft 0.7s ease-in-out;
+}
+
+/* Button click animation */
+@keyframes buttonClick {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-button-click {
+  animation: buttonClick 0.2s ease-in-out;
+}
+
+/* Page transition animations */
+.page-transition-enter {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.page-transition-enter-active {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity 0.7s ease-in-out, transform 0.7s ease-in-out;
+}
 
 .page-transition-exit {
   opacity: 1;
@@ -192,4 +376,8 @@ body {
   opacity: 0;
   transform: translateX(-20px);
   transition: opacity 0.7s ease-in-out, transform 0.7s ease-in-out;
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
 }

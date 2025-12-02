@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '@/components/Sidebar'
 import TopNav from '@/components/TopNav'
+import { useToast } from '@/components/ui/ToastContext'
 
 export default function AlertsPage() {
+  const { addToast } = useToast()
   const [activeTab, setActiveTab] = useState('history')
   const [alertHistory, setAlertHistory] = useState([])
   const [alertConfig, setAlertConfig] = useState({
@@ -76,21 +78,21 @@ export default function AlertsPage() {
   // Save config to localStorage
   const saveConfig = () => {
     localStorage.setItem('alertConfig', JSON.stringify(alertConfig))
-    alert('✅ Alert configuration saved successfully!')
+    addToast('Alert configuration saved successfully!', 'success')
   }
 
   // Add new recipient
   const handleAddRecipient = () => {
     if (!newRecipient.name.trim() || !newRecipient.email.trim()) {
-      alert('Please fill in Name and Email fields')
+      addToast('Please fill in Name and Email fields', 'warning')
       return
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newRecipient.email)) {
-      alert('Please enter a valid email format')
+      addToast('Please enter a valid email format', 'warning')
       return
     }
     if (alertConfig.recipients.some(r => r.email === newRecipient.email)) {
-      alert('This email already exists')
+      addToast('This email already exists', 'warning')
       return
     }
     setAlertConfig(prev => ({
@@ -108,7 +110,6 @@ export default function AlertsPage() {
       ...prev,
       recipients: updated
     }))
-    setEditingRecipient(null)
   }
 
   // Delete recipient
@@ -152,15 +153,11 @@ export default function AlertsPage() {
         })
         localStorage.setItem('alertHistory', JSON.stringify(alertHistory))
         setAlertHistory(alertHistory)
-        alert(`✅ Alert sent to ${recipient.name} (${recipient.email})
-
-Current Temp: ${alertConfig.currentTemp}°C
-Threshold: ${alertConfig.thresholdTemp}°C
-Status: ${alertConfig.currentTemp <= alertConfig.thresholdTemp ? '🚨 DANGER' : '⚠️ WARNING'}`)
+        addToast(`Alert sent to ${recipient.name} (${recipient.email})\n\nCurrent Temp: ${alertConfig.currentTemp}°C\nThreshold: ${alertConfig.thresholdTemp}°C\nStatus: ${alertConfig.currentTemp <= alertConfig.thresholdTemp ? 'DANGER' : 'WARNING'}`, 'success', 'send')
       }
     } catch (error) {
       console.error('Error resending alert:', error)
-      alert('❌ Failed to resend alert')
+      addToast('❌ Failed to resend alert', 'error')
     }
   }
 
@@ -175,10 +172,10 @@ Status: ${alertConfig.currentTemp <= alertConfig.thresholdTemp ? '🚨 DANGER' :
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-cyan-50">
       <Sidebar activeSection="alerts" />
-      
+
       <div className="flex-1 flex flex-col overflow-hidden">
         <TopNav />
-        
+
         <div className="flex-1 overflow-auto">
           <div className="max-w-7xl mx-auto px-8 py-10">
             {/* Header with gradient background */}
@@ -191,21 +188,19 @@ Status: ${alertConfig.currentTemp <= alertConfig.thresholdTemp ? '🚨 DANGER' :
             <div className="flex gap-2 mb-8 bg-white rounded-xl p-1 shadow-md border-2 border-blue-200 w-fit">
               <button
                 onClick={() => setActiveTab('history')}
-                className={`cursor-pointer px-8 py-3 font-bold text-base rounded-lg transition-all duration-150 active:scale-95 ${
-                  activeTab === 'history'
-                    ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg scale-105'
-                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                }`}
+                className={`cursor-pointer px-8 py-3 font-bold text-base rounded-lg transition-all duration-150 active:scale-95 ${activeTab === 'history'
+                  ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg scale-105'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
               >
                 📋 Alert History
               </button>
               <button
                 onClick={() => setActiveTab('config')}
-                className={`cursor-pointer px-8 py-3 font-bold text-base rounded-lg transition-all duration-150 active:scale-95 ${
-                  activeTab === 'config'
-                    ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg scale-105'
-                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
-                }`}
+                className={`cursor-pointer px-8 py-3 font-bold text-base rounded-lg transition-all duration-150 active:scale-95 ${activeTab === 'config'
+                  ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg scale-105'
+                  : 'text-gray-700 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
               >
                 ⚙️ Configuration
               </button>
@@ -271,7 +266,7 @@ Status: ${alertConfig.currentTemp <= alertConfig.thresholdTemp ? '🚨 DANGER' :
                     <span className="text-3xl">👥</span>
                     <h3 className="text-lg font-bold text-gray-900">Alert Recipients</h3>
                   </div>
-                  
+
                   {/* Add New Recipient Form */}
                   <div className="mb-8 p-6 bg-gradient-to-br from-teal-50 to-cyan-50 rounded-xl border-2 border-teal-500 shadow-md">
                     <h4 className="font-bold text-gray-900 mb-5 text-base flex items-center gap-2">
