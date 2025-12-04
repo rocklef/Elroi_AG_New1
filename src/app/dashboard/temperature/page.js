@@ -174,6 +174,15 @@ export default function TemperaturePage() {
   const [alertSent, setAlertSent] = useState(false)
   const [predictedTime, setPredictedTime] = useState(null)
 
+  // Live Excel Data State
+  const [isLiveMode, setIsLiveMode] = useState(false)
+  const [temperatureReadings, setTemperatureReadings] = useState([])
+
+  // Prediction Monitoring State
+  const [isPredicting, setIsPredicting] = useState(false)
+  const [predictionStatus, setPredictionStatus] = useState('idle')
+  const [countdown, setCountdown] = useState(1200) // 20 minutes in seconds
+
   // Load threshold from settings (localStorage)
   useEffect(() => {
     const loadThreshold = () => {
@@ -201,26 +210,128 @@ export default function TemperaturePage() {
     }
   }, [])
 
-  // Dynamic temperature simulation (decreasing)
+  // Fetch live temperature from Excel file
   useEffect(() => {
     setCurrentTime(new Date())
-    const interval = setInterval(() => {
-      setCurrentTemp(prev => {
-        const decrease = Math.random() * 0.05 + 0.01 // Random decrease between 0.01 and 0.06
-        const newTemp = prev - decrease
-        return newTemp > 31.0 ? newTemp : 31.0 // Stop at minimum
-      })
-      setCurrentTime(new Date()) // Update time every interval
 
-      // Update tempHistory for prediction
-      setTempHistory(prev => {
-        const newHistory = [...prev, { temp: currentTemp, timestamp: Date.now() }]
-        return newHistory.slice(-10) // Keep last 10 readings
-      })
-    }, 2000) // Update every 2 seconds
+    const fetchLiveData = async () => {
+      try {
+        // Add timestamp to prevent caching
+        const res = await fetch(`/api/live-temperature?t=${Date.now()}`, {
+          cache: 'no-store'
+        })
+        const data = await res.json()
+
+        if (data.isLive && data.temperature !== undefined) {
+          setCurrentTemp(data.temperature)
+          setIsLiveMode(true)
+          if (data.readings) setTemperatureReadings(data.readings)
+
+          // Update tempHistory for prediction
+          setTempHistory(prev => {
+            const newHistory = [...prev, { temp: data.temperature, timestamp: Date.now() }]
+            return newHistory.slice(-10)
+          })
+        } else {
+          setIsLiveMode(false)
+        }
+      } catch (error) {
+        console.error('Error fetching live data:', error)
+        setIsLiveMode(false)
+      }
+      setCurrentTime(new Date())
+    }
+
+    fetchLiveData() // Initial fetch
+    const interval = setInterval(fetchLiveData, 5000) // Poll every 5 seconds
 
     return () => clearInterval(interval)
   }, [])
+
+  // Poll prediction status when prediction is running
+  useEffect(() => {
+    if (!isPredicting) return
+
+    const checkPrediction = async () => {
+      try {
+        const res = await fetch(`/api/prediction-status?t=${Date.now()}`)
+        const data = await res.json()
+
+        setPredictionStatus(data.status)
+
+        if (data.status === 'complete' && data.predicted_minutes) {
+          // Store predicted time in SECONDS for countdown
+          setPredictedTime(Math.round(data.predicted_minutes * 60))
+          setIsPredicting(false)
+        }
+      } catch (error) {
+        console.error('Error checking prediction:', error)
+      }
+    }
+
+    checkPrediction()
+    const interval = setInterval(checkPrediction, 5000)
+    return () => clearInterval(interval)
+  }, [isPredicting])
+
+  // Countdown timer for Time to Threshold (after prediction)
+  useEffect(() => {
+    if (predictedTime === null || predictedTime <= 0) return
+
+    const timer = setInterval(() => {
+      setPredictedTime(prev => prev > 0 ? prev - 1 : 0)
+    }, 1000) // Decrement every second
+
+    return () => clearInterval(timer)
+  }, [predictedTime !== null && predictedTime > 0])
+
+  // Alert trigger when Time to Threshold reaches 5 minutes (300 seconds)
+  useEffect(() => {
+    // Trigger alert at exactly 5 minutes (300 seconds) remaining
+    if (predictedTime === 300 && !alertSent && recipients.length > 0) {
+      console.log('🚨 AUTO ALERT: 5 minutes remaining to threshold!')
+      sendPredictiveAlert(
+        recipients,
+        currentTemp,
+        userThreshold,
+        300, // 5 minutes in seconds
+        `⏰ ALERT: Temperature will reach ${userThreshold}°C in 5 minutes!`
+      )
+      setAlertSent(true)
+    }
+  }, [predictedTime])
+
+  // Start prediction function
+  const startPrediction = async () => {
+    try {
+      setPredictedTime(null)
+      setIsPredicting(true)
+      setPredictionStatus('waiting')
+      setCountdown(1200) // Reset to 20 minutes
+
+      const res = await fetch('/api/start-prediction', { method: 'POST' })
+      const data = await res.json()
+
+      if (!data.started) {
+        setIsPredicting(false)
+        setPredictionStatus('error')
+      }
+    } catch (error) {
+      console.error('Error starting prediction:', error)
+      setIsPredicting(false)
+    }
+  }
+
+  // Countdown timer for data collection
+  useEffect(() => {
+    if (!isPredicting || predictionStatus === 'complete') return
+
+    const timer = setInterval(() => {
+      setCountdown(prev => prev > 0 ? prev - 1 : 0)
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [isPredicting, predictionStatus])
 
   // Auto-cycle through temperature data every 5 seconds (for analysis view)
   useEffect(() => {
@@ -332,7 +443,8 @@ export default function TemperaturePage() {
       return
     }
 
-    // 2. Predictive Check (Needs history)
+    // 2. Predictive Check (Needs history) - Only for alerts, NOT for Time to Threshold display
+    // Time to Threshold is now set ONLY by the Python ML prediction (validation2.py)
     if (tempHistory.length < 5) return
 
     const recentReadings = tempHistory.slice(-5)
@@ -351,16 +463,14 @@ export default function TemperaturePage() {
     if (rateOfChange >= 0) {
       if (currentTemp > userThreshold + 2) {
         setAlertSent(false)
-        setPredictedTime(null)
+        // Note: Do NOT reset predictedTime here - it comes from Python prediction only
       }
       return
     }
 
-    // Predict time to threshold
+    // Calculate time to threshold for alert purposes only
     const tempDifference = currentTemp - userThreshold
     const timeToThreshold = tempDifference / Math.abs(rateOfChange)
-
-    setPredictedTime(timeToThreshold)
 
     // Check if we should alert (Predictive only here)
     if (timeToThreshold <= alertLeadTime && timeToThreshold > 0 && !alertSent) {
@@ -743,16 +853,24 @@ export default function TemperaturePage() {
                       {predictedTime !== null && predictedTime > 0 ? (
                         <>
                           <div className="text-6xl font-black text-orange-700" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                            {Math.floor(predictedTime / 60)}:{(Math.floor(predictedTime) % 60).toString().padStart(2, '0')}
+                            {Math.floor(predictedTime / 60)}:{(predictedTime % 60).toString().padStart(2, '0')}
                           </div>
-                          <div className="text-sm text-orange-600 font-semibold mt-2">minutes</div>
+                          <div className="text-sm text-orange-600 font-semibold mt-2">to reach 32°C</div>
+                        </>
+                      ) : isPredicting ? (
+                        <>
+                          <div className="text-4xl font-black text-amber-600 animate-pulse" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                            ⏳
+                          </div>
+                          <div className="text-sm text-amber-600 font-semibold mt-2">Collecting data...</div>
+                          <div className="text-xs text-gray-500 mt-1">~20 min remaining</div>
                         </>
                       ) : (
                         <>
-                          <div className="text-6xl font-black text-green-700" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                          <div className="text-6xl font-black text-gray-400" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                             --:--
                           </div>
-                          <div className="text-sm text-green-600 font-semibold mt-2">Stable</div>
+                          <div className="text-sm text-gray-500 font-semibold mt-2">Click Start Monitoring</div>
                         </>
                       )}
                     </div>
@@ -784,13 +902,29 @@ export default function TemperaturePage() {
                     </div>
 
                     {/* System Status Metrics - Moved here */}
-                    <div className="mb-6 p-4 bg-gradient-to-br from-green-100 via-emerald-50 to-teal-50 rounded-xl border-2 border-green-200 shadow-lg">
+                    <div className={`mb-6 p-4 rounded-xl border-2 shadow-lg ${isPredicting ? 'bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-50 border-amber-200' : 'bg-gradient-to-br from-green-100 via-emerald-50 to-teal-50 border-green-200'}`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-6">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-semibold text-gray-600 uppercase">Status</span>
-                            <span className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold rounded-full shadow-lg shadow-green-500/40">COOLING</span>
+                            {isPredicting ? (
+                              <span className="px-3 py-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold rounded-full shadow-lg shadow-amber-500/40 animate-pulse">
+                                COLLECTING DATA
+                              </span>
+                            ) : (
+                              <span className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white text-xs font-bold rounded-full shadow-lg shadow-green-500/40">
+                                COOLING
+                              </span>
+                            )}
                           </div>
+                          {isPredicting && (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-amber-700">⏱️ Time Left</span>
+                              <span className="text-sm font-bold text-amber-800 bg-amber-200 px-2 py-0.5 rounded">
+                                {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')}
+                              </span>
+                            </div>
+                          )}
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-gray-700">Threshold</span>
                             <span className="text-sm font-bold text-gray-900">{series.threshold.toFixed(1)}°C</span>
@@ -820,8 +954,15 @@ export default function TemperaturePage() {
                       >
                         <span>⚙️</span> Configure Alert Email
                       </button>
-                      <button className="py-3 px-4 bg-gradient-to-r from-blue-600 via-blue-700 to-cyan-700 text-white font-bold rounded-xl hover:from-blue-700 hover:to-cyan-800 transition-all shadow-lg shadow-blue-500/40 hover:shadow-xl hover:scale-105">
-                        Start Monitoring
+                      <button
+                        onClick={startPrediction}
+                        disabled={isPredicting}
+                        className={`py-3 px-4 font-bold rounded-xl transition-all shadow-lg hover:shadow-xl hover:scale-105 ${isPredicting
+                          ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white animate-pulse cursor-wait'
+                          : 'bg-gradient-to-r from-blue-600 via-blue-700 to-cyan-700 text-white shadow-blue-500/40 hover:from-blue-700 hover:to-cyan-800'
+                          }`}
+                      >
+                        {isPredicting ? '⏳ Collecting Data...' : '▶️ Start Monitoring'}
                       </button>
                       <button className="py-3 px-4 bg-gradient-to-r from-gray-200 to-gray-300 text-gray-700 font-bold rounded-xl hover:from-gray-300 hover:to-gray-400 transition-all shadow-md hover:shadow-lg hover:scale-105">
                         Pause
