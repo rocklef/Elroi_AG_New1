@@ -70,14 +70,14 @@ def wait_and_predict(excel_path, seq_len=240, target_temp=32.0, poll_interval=5)
                     df_initial = pd.read_excel(excel_path, engine="openpyxl")
                 break
             except Exception as e:
-                print("⚠️ Error reading Excel (initial):", e)
+                print("[WARN] Error reading Excel (initial):", e)
                 time.sleep(poll_interval)
         else:
             time.sleep(poll_interval)
 
     initial_count = len(df_initial)
-    print(f"✅ Initial row count: {initial_count}", flush=True)
-    print(f"⏳ Waiting for {seq_len} new rows (target: {initial_count + seq_len})...", flush=True)
+    print(f"[OK] Initial row count: {initial_count}", flush=True)
+    print(f"[WAIT] Waiting for {seq_len} new rows (target: {initial_count + seq_len})...", flush=True)
 
     # Wait until seq_len new rows are appended
     while True:
@@ -87,7 +87,7 @@ def wait_and_predict(excel_path, seq_len=240, target_temp=32.0, poll_interval=5)
             else:
                 df_now = pd.read_excel(excel_path, engine="openpyxl")
         except Exception as e:
-            print(f"⚠️ Error reading: {e}", flush=True)
+            print(f"[WARN] Error reading: {e}", flush=True)
             time.sleep(poll_interval)
             continue
 
@@ -95,10 +95,10 @@ def wait_and_predict(excel_path, seq_len=240, target_temp=32.0, poll_interval=5)
         if current_count >= initial_count + seq_len:
             # take the last seq_len rows (the new readings)
             df = df_now.tail(seq_len).copy()
-            print(f"✅ Got {seq_len} new rows! Starting prediction...", flush=True)
+            print(f"[OK] Got {seq_len} new rows! Starting prediction...", flush=True)
             break
         
-        print(f"📊 Rows: {current_count}/{initial_count + seq_len} (need {initial_count + seq_len - current_count} more)", flush=True)
+        print(f"[INFO] Rows: {current_count}/{initial_count + seq_len} (need {initial_count + seq_len - current_count} more)", flush=True)
         time.sleep(poll_interval)
 
     # Detect columns
@@ -124,7 +124,7 @@ def wait_and_predict(excel_path, seq_len=240, target_temp=32.0, poll_interval=5)
     pred_times, pred_temps = [], []
     step = 0
 
-    print(f"✅ Collected {seq_len} new readings — starting prediction...")
+    print(f"[OK] Collected {seq_len} new readings — starting prediction...")
 
     while True:
         x = torch.tensor(current_seq[-seq_len:], dtype=torch.float32).unsqueeze(0)
@@ -139,7 +139,7 @@ def wait_and_predict(excel_path, seq_len=240, target_temp=32.0, poll_interval=5)
 
         if y_pred_real <= target_temp:
             predicted_minutes = step * 5 / 60
-            print(f"✅ Reached predicted {target_temp}°C after {predicted_minutes:.1f} minutes.")
+            print(f"[OK] Reached predicted {target_temp}°C after {predicted_minutes:.1f} minutes.")
             
             # Save prediction result as JSON for frontend
             import json
@@ -151,7 +151,7 @@ def wait_and_predict(excel_path, seq_len=240, target_temp=32.0, poll_interval=5)
             }
             with open("prediction_result.json", "w") as f:
                 json.dump(result, f)
-            print("📊 Prediction result saved to prediction_result.json")
+            print("[INFO] Prediction result saved to prediction_result.json")
             break
 
     # Save predicted values
