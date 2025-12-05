@@ -187,6 +187,12 @@ export default function TemperaturePage() {
   const [alert10MinSent, setAlert10MinSent] = useState(false) // 10-minute alert
   const [predictedTime, setPredictedTime] = useState(null)
 
+  // Alert Modal State
+  const [showAlertPopup, setShowAlertPopup] = useState(false)
+  const [alertPopupData, setAlertPopupData] = useState(null)
+  const [showDangerModal, setShowDangerModal] = useState(false)
+  const [dangerModalData, setDangerModalData] = useState(null)
+
   // Live Excel Data State
   const [isLiveMode, setIsLiveMode] = useState(false)
   const [temperatureReadings, setTemperatureReadings] = useState([])
@@ -266,7 +272,8 @@ export default function TemperaturePage() {
   }, [])
 
   // Alert function - sends email via Resend API
-  const sendAlert = async (recipientList, currentTemp, thresholdTemp, message) => {
+  // toastType: 'alert-warning' (light orange) or 'alert-danger' (dark red)
+  const sendAlert = async (recipientList, currentTemp, thresholdTemp, message, toastType = 'alert-danger') => {
     try {
       // Extract emails from recipients (recipients can be objects with email property or strings)
       const emails = recipientList.map(r => typeof r === 'string' ? r : r.email)
@@ -282,7 +289,7 @@ export default function TemperaturePage() {
           recipientNames: recipientNames,
           currentTemp: currentTemp,
           threshold: thresholdTemp,
-          etaMinutes: 0,
+          etaMinutes: predictedTime ? Math.floor(predictedTime / 60) : 0,
           customMessage: message,
           isDanger: currentTemp < thresholdTemp
         })
@@ -291,9 +298,23 @@ export default function TemperaturePage() {
       const result = await response.json()
       console.log('[ALERT] Response:', result)
 
-      // Show popup notification
+      // Show detailed popup notification
       if (result.success) {
-        addToast(`🚨 Alert sent to ${emails.join(', ')}`, 'success')
+        setAlertPopupData({
+          type: toastType,
+          recipients: 1, // Resend free tier only sends to verified email
+          currentTemp: currentTemp,
+          threshold: thresholdTemp,
+          eta: predictedTime ? `~${Math.floor(predictedTime / 60)}m` : 'N/A',
+          emailSentTo: emails[0], // Only show first email (Resend limitation)
+          coolingRate: tempHistory.length >= 2
+            ? `${((tempHistory[0]?.temp - tempHistory[tempHistory.length - 1]?.temp) / tempHistory.length * 12).toFixed(2)}°C/min`
+            : 'Calculating...',
+          message: message
+        })
+        setShowAlertPopup(true)
+        // Auto-hide after 6 seconds
+        setTimeout(() => setShowAlertPopup(false), 6000)
       } else {
         addToast(`⚠️ Alert failed: ${result.error || 'Unknown error'}`, 'error')
       }
@@ -307,27 +328,36 @@ export default function TemperaturePage() {
   useEffect(() => {
     if (!isLiveMode || recipients.length === 0) return
 
-    // Check threshold breach - send only ONCE
+    // Check threshold breach - send only ONCE (dark red popup)
     if (currentTemp < userThreshold && !alertSent) {
       console.log(`🚨 THRESHOLD ALERT: Temp ${currentTemp}°C below threshold ${userThreshold}°C`)
       sendAlert(
         recipients,
         currentTemp,
         userThreshold,
-        `⚠️ ALERT: Temperature dropped below threshold! Current: ${currentTemp}°C, Threshold: ${userThreshold}°C`
+        `⚠️ ALERT: Temperature dropped below threshold! Current: ${currentTemp}°C, Threshold: ${userThreshold}°C`,
+        'alert-danger'
       )
       setAlertSent(true)
     }
 
-    // Check target breach (40°C) - send only ONCE
+    // Check target breach (40°C) - send only ONCE (BIG DANGER MODAL)
     if (currentTemp < TARGET_TEMP && !targetAlertSent) {
       console.log(`🚨 TARGET ALERT: Temp ${currentTemp}°C below target ${TARGET_TEMP}°C`)
       sendAlert(
         recipients,
         currentTemp,
         TARGET_TEMP,
-        `🎯 ALERT: Temperature dropped below target! Current: ${currentTemp}°C, Target: ${TARGET_TEMP}°C`
+        `🎯 ALERT: Temperature dropped below target! Current: ${currentTemp}°C, Target: ${TARGET_TEMP}°C`,
+        'alert-danger'
       )
+      // Show BIG danger modal for target breach
+      setDangerModalData({
+        currentTemp: currentTemp,
+        target: TARGET_TEMP,
+        emailSentTo: recipients[0]?.email || 'configured recipient'
+      })
+      setShowDangerModal(true)
       setTargetAlertSent(true)
     }
     // NOTE: Alert flags are NOT auto-reset. They only reset when user clicks Start Monitoring again.
@@ -374,27 +404,39 @@ export default function TemperaturePage() {
   useEffect(() => {
     if (recipients.length === 0) return
 
-    // Trigger alert at exactly 10 minutes (600 seconds) remaining
+    // Trigger alert at exactly 10 minutes (600 seconds) remaining (light orange popup)
     if (predictedTime === 600 && !alert10MinSent) {
       console.log('🚨 AUTO ALERT: 10 minutes remaining to threshold!')
       sendAlert(
         recipients,
         currentTemp,
         userThreshold,
-        `⏰ ALERT: Temperature will reach ${userThreshold}°C in 10 minutes!`
+        `⏰ ALERT: Temperature will reach ${userThreshold}°C in 10 minutes!`,
+        'alert-warning'
       )
       setAlert10MinSent(true)
     }
 
-    // Trigger alert at exactly 5 minutes (300 seconds) remaining
+    // Trigger alert at exactly 5 minutes (300 seconds) remaining (BIG RED DANGER MODAL)
     if (predictedTime === 300 && !alertSent) {
       console.log('🚨 AUTO ALERT: 5 minutes remaining to threshold!')
       sendAlert(
         recipients,
         currentTemp,
         userThreshold,
-        `⏰ ALERT: Temperature will reach ${userThreshold}°C in 5 minutes!`
+        `⏰ ALERT: Temperature will reach ${userThreshold}°C in 5 minutes!`,
+        'alert-danger'
       )
+      // Show BIG danger modal for 5-minute warning
+      setDangerModalData({
+        currentTemp: currentTemp,
+        target: userThreshold,
+        emailSentTo: recipients[0]?.email || 'configured recipient',
+        title: '5 MINUTES REMAINING!',
+        subtitle: 'Temperature will reach threshold soon',
+        isFiveMinute: true
+      })
+      setShowDangerModal(true)
       setAlertSent(true)
     }
   }, [predictedTime])
@@ -509,7 +551,7 @@ export default function TemperaturePage() {
 
       if (response.ok) {
         console.log('✅ Alert email sent successfully:', result)
-        addToast(`Alert sent to ${recipientList.length} recipients`, 'success', 'send')
+        addToast('Alert sent', 'success', 'send')
 
         // Log to Alert History in localStorage
         const newAlerts = recipientList.map(recipient => ({
@@ -2000,6 +2042,132 @@ export default function TemperaturePage() {
           </div>
         )
       }
-    </div >
+
+      {/* Alert Popup Modal */}
+      {showAlertPopup && alertPopupData && (
+        <div className="fixed top-4 right-4 z-[9999] animate-in slide-in-from-right-5 fade-in duration-300">
+          <div className={`w-[420px] rounded-2xl shadow-2xl overflow-hidden ${alertPopupData.type === 'alert-warning'
+            ? 'bg-gradient-to-br from-orange-400 via-amber-500 to-orange-500 ring-8 ring-orange-400/60 shadow-[0_0_40px_rgba(251,146,60,0.6)]'
+            : 'bg-gradient-to-br from-red-500 via-rose-600 to-red-600 ring-8 ring-red-500/60 shadow-[0_0_40px_rgba(239,68,68,0.6)]'
+            }`}>
+            {/* Header */}
+            <div className="px-5 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="text-white text-2xl">🚨</span>
+                <span className="text-white font-bold text-lg">REAL-TIME ALERT SENT!</span>
+              </div>
+              <button
+                onClick={() => setShowAlertPopup(false)}
+                className="text-white/80 hover:text-white transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="text-white/90 text-sm px-5 pb-3">Temperature threshold approaching</div>
+
+            {/* Content */}
+            <div className="bg-white rounded-t-2xl p-5 space-y-4">
+              {/* Stats Row */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-500">📊 Recipients</div>
+                  <div className="text-lg font-bold text-gray-800">{alertPopupData.recipients}/{alertPopupData.recipients}</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-500">🌡️ Current</div>
+                  <div className="text-lg font-bold text-blue-600">{alertPopupData.currentTemp?.toFixed(1)}°C</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-500">⚠️ Threshold</div>
+                  <div className="text-lg font-bold text-red-600">{alertPopupData.threshold?.toFixed(1)}°C</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="text-sm text-gray-500">⏱️ ETA</div>
+                  <div className="text-lg font-bold text-gray-800">{alertPopupData.eta}</div>
+                </div>
+              </div>
+
+              {/* Email Sent To */}
+              <div className="bg-red-50 rounded-lg p-3 border border-red-100">
+                <div className="text-sm text-red-600 font-semibold">📧 Email Sent To:</div>
+                <div className="text-sm text-red-700 font-medium truncate">{alertPopupData.emailSentTo}</div>
+              </div>
+
+              {/* Status */}
+              <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                <div className="text-sm text-blue-600 font-semibold">❄️ Status:</div>
+                <div className="text-sm text-blue-700 font-medium">Cooling</div>
+              </div>
+
+              {/* Success Message */}
+              <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Alert successfully delivered to all recipients
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BIG DANGER MODAL - Target Breach / 5-min Alert (Centered, Maximum Red) */}
+      {showDangerModal && dangerModalData && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/70 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-[600px] rounded-3xl shadow-2xl overflow-hidden bg-gradient-to-br from-red-600 via-red-700 to-rose-800 ring-[12px] ring-red-500/70 shadow-[0_0_80px_rgba(220,38,38,0.8)]">
+            {/* Header */}
+            <div className="px-8 py-6 text-center border-b border-red-500/30">
+              <div className="text-6xl mb-4 animate-pulse">{dangerModalData.isFiveMinute ? '⏰' : '🚨'}</div>
+              <h1 className="text-white font-black text-3xl tracking-wide">{dangerModalData.title || 'TARGET TEMPERATURE REACHED!'}</h1>
+              <p className="text-red-200 text-lg mt-2">{dangerModalData.subtitle || 'System has reached the critical temperature threshold'}</p>
+            </div>
+
+            {/* Content */}
+            <div className="bg-red-900/50 p-8 space-y-6">
+              {/* Big Temperature Display */}
+              <div className="text-center bg-red-950/60 rounded-2xl p-8 border-2 border-red-500/50">
+                <div className="text-red-300 text-xl font-semibold mb-2">CURRENT TEMPERATURE</div>
+                <div className="text-white text-7xl font-black" style={{ textShadow: '0 0 30px rgba(255,0,0,0.5)' }}>
+                  {dangerModalData.currentTemp?.toFixed(1)}°C
+                </div>
+                <div className="text-red-400 text-lg mt-4">
+                  Target: <span className="font-bold text-white">{dangerModalData.target}°C</span>
+                </div>
+              </div>
+
+              {/* Status */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-red-950/60 rounded-xl p-4 border border-red-500/30">
+                  <div className="text-red-300 text-sm font-semibold">📧 Alert Sent To</div>
+                  <div className="text-white text-lg font-bold truncate">{dangerModalData.emailSentTo}</div>
+                </div>
+                <div className="bg-red-950/60 rounded-xl p-4 border border-red-500/30">
+                  <div className="text-red-300 text-sm font-semibold">❄️ Status</div>
+                  <div className="text-white text-lg font-bold">Cooling Complete</div>
+                </div>
+              </div>
+
+              {/* Success Message */}
+              <div className="flex items-center justify-center gap-3 text-green-400 text-lg font-semibold bg-green-900/30 rounded-xl p-4 border border-green-500/30">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+                Alert successfully delivered!
+              </div>
+
+              {/* Close Button */}
+              <button
+                onClick={() => setShowDangerModal(false)}
+                className="w-full py-4 bg-white text-red-700 font-bold text-xl rounded-xl hover:bg-red-50 transition-all shadow-lg"
+              >
+                ACKNOWLEDGE & CLOSE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }

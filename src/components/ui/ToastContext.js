@@ -84,6 +84,8 @@ export function ToastProvider({ children }) {
               ${toast.type === 'error' ? 'bg-red-500' : ''}
               ${toast.type === 'info' ? 'bg-blue-500' : ''}
               ${toast.type === 'warning' ? 'bg-orange-500' : ''}
+              ${toast.type === 'alert-warning' ? 'bg-gradient-to-r from-orange-400 to-amber-500' : ''}
+              ${toast.type === 'alert-danger' ? 'bg-gradient-to-r from-red-600 to-rose-700' : ''}
             `}>
                             {getIcon(toast)}
                         </div>

@@ -153,7 +153,7 @@ export default function AlertsPage() {
         })
         localStorage.setItem('alertHistory', JSON.stringify(alertHistory))
         setAlertHistory(alertHistory)
-        addToast(`Alert sent to ${recipient.name} (${recipient.email})\n\nCurrent Temp: ${alertConfig.currentTemp}°C\nThreshold: ${alertConfig.thresholdTemp}°C\nStatus: ${alertConfig.currentTemp <= alertConfig.thresholdTemp ? 'DANGER' : 'WARNING'}`, 'success', 'send')
+        addToast('Alert sent', 'success', 'send')
       }
     } catch (error) {
       console.error('Error resending alert:', error)
