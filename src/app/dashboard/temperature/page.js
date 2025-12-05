@@ -304,17 +304,23 @@ export default function TemperaturePage() {
   // Start prediction function
   const startPrediction = async () => {
     try {
+      console.log('[DEBUG] Starting prediction...')
       setPredictedTime(null)
       setIsPredicting(true)
       setPredictionStatus('waiting')
       setCountdown(1200) // Reset to 20 minutes
 
       const res = await fetch('/api/start-prediction', { method: 'POST' })
+      console.log('[DEBUG] API response status:', res.status)
       const data = await res.json()
+      console.log('[DEBUG] API response data:', data)
 
       if (!data.started) {
+        console.error('[ERROR] Prediction failed to start:', data)
         setIsPredicting(false)
         setPredictionStatus('error')
+      } else {
+        console.log('[SUCCESS] Prediction started successfully')
       }
     } catch (error) {
       console.error('Error starting prediction:', error)

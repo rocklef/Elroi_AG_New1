@@ -20,15 +20,17 @@ export async function POST() {
         // Write "waiting" status
         fs.writeFileSync(resultFile, JSON.stringify({ status: 'waiting', timestamp: Date.now() }));
 
-        // Create log file stream
-        const logStream = fs.createWriteStream(logFile, { flags: 'a' });
-
         // Spawn Python script with output logging
         const pythonProcess = spawn('python', ['validation2.py'], {
             cwd: backendDir,
             detached: true,
-            stdio: ['ignore', logStream, logStream] // Log stdout and stderr
+            stdio: ['ignore', 'pipe', 'pipe'] // Use pipe instead of stream
         });
+
+        // Manually pipe output to log file
+        const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+        pythonProcess.stdout.pipe(logStream);
+        pythonProcess.stderr.pipe(logStream);
 
         pythonProcess.on('error', (err) => {
             fs.appendFileSync(logFile, `\nProcess error: ${err.message}\n`);

@@ -87,30 +87,30 @@ export default function LoginPanel() {
     <div className={`bg-white flex flex-col space-y-4 transition-all duration-700 ease-in-out ${isLoggedIn ? 'opacity-0 scale-95' : 'opacity-100 scale-100'}`}>
       {/* Header */}
       <div className="animate-fade-in-up">
-        <h1 className="text-[1.7rem] font-bold text-[#1A1F36] leading-tight">Welcome Back</h1>
-        <p className="text-[0.92rem] text-gray-600 mt-2 leading-relaxed">
+        <h1 className="text-[2rem] font-bold text-[#1A1F36] leading-tight">Welcome Back</h1>
+        <p className="text-[1.05rem] text-gray-600 mt-2 leading-relaxed">
           {isSignUp ? 'Sign up to get started' : 'Sign in to continue to your dashboard'}
         </p>
       </div>
 
       {/* Toggle bar */}
       <div className="flex bg-gray-100 rounded-md overflow-hidden rounded animate-fade-in-up delay-100">
-        <button 
+        <button
           onClick={() => toggleMode('signup')}
-          className={`w-1/2 py-1.5 text-sm font-medium cursor-pointer transition-all duration-300 transform hover:scale-105 ${isSignUp ? 'text-white bg-[#1E73BE]' : 'text-gray-600 hover:bg-gray-200'}`}
+          className={`w-1/2 py-2 text-base font-medium cursor-pointer transition-all duration-300 transform hover:scale-105 ${isSignUp ? 'text-white bg-[#1E73BE]' : 'text-gray-600 hover:bg-gray-200'}`}
         >
           Sign up
         </button>
-        <button 
+        <button
           onClick={() => toggleMode('login')}
-          className={`w-1/2 py-1.5 text-sm font-medium cursor-pointer transition-all duration-300 transform hover:scale-105 ${!isSignUp ? 'text-white bg-[#1E73BE]' : 'text-gray-600 hover:bg-gray-200'}`}
+          className={`w-1/2 py-2 text-base font-medium cursor-pointer transition-all duration-300 transform hover:scale-105 ${!isSignUp ? 'text-white bg-[#1E73BE]' : 'text-gray-600 hover:bg-gray-200'}`}
         >
           Log in
         </button>
       </div>
 
       {error && (
-        <div className="p-2.5 bg-red-50 text-red-700 rounded-lg text-sm font-medium border border-red-100 animate-fade-in-up">
+        <div className="p-3 bg-red-50 text-red-700 rounded-lg text-base font-medium border border-red-100 animate-fade-in-up">
           {error}
         </div>
       )}
@@ -119,7 +119,7 @@ export default function LoginPanel() {
       <form onSubmit={isSignUp ? handleSignUp : handleLogin} className="flex flex-col space-y-3">
         {/* Email */}
         <div className="animate-fade-in-up delay-100">
-          <label className="text-xs font-semibold text-[#1A1F36] tracking-wide">
+          <label className="text-sm font-semibold text-[#1A1F36] tracking-wide">
             EMAIL ADDRESS
           </label>
           <input
@@ -127,7 +127,7 @@ export default function LoginPanel() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full border border-[#D3D9E3] rounded-md px-3.5 py-2.5 mt-1.5 bg-[#F7F9FC] focus:outline-none focus:ring-2 focus:ring-[#1E73BE] text-[0.95rem] transition-all duration-300 hover:shadow-md"
+            className="w-full border border-[#D3D9E3] rounded-md px-4 py-3 mt-1.5 bg-[#F7F9FC] focus:outline-none focus:ring-2 focus:ring-[#1E73BE] text-base transition-all duration-300 hover:shadow-md"
             placeholder="you@company.com"
             required
             disabled={isSubmitting || isLoggedIn}
@@ -136,10 +136,10 @@ export default function LoginPanel() {
 
         {/* Password */}
         <div className="animate-fade-in-up delay-200">
-          <label className="text-xs font-semibold text-[#1A1F36] tracking-wide flex justify-between">
+          <label className="text-sm font-semibold text-[#1A1F36] tracking-wide flex justify-between">
             <span>PASSWORD</span>
             {!isSignUp && (
-              <a href="#" className="text-[#1E73BE] text-xs hover:underline font-medium">FORGOT PASSWORD?</a>
+              <a href="#" className="text-[#1E73BE] text-sm hover:underline font-medium">FORGOT PASSWORD?</a>
             )}
           </label>
           <div className="relative mt-1.5">
@@ -148,7 +148,7 @@ export default function LoginPanel() {
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full border border-[#D3D9E3] rounded-md px-3.5 py-2.5 bg-[#F7F9FC] focus:outline-none focus:ring-2 focus:ring-[#1E73BE] pr-9 text-[0.95rem] transition-all duration-300 hover:shadow-md"
+              className="w-full border border-[#D3D9E3] rounded-md px-4 py-3 bg-[#F7F9FC] focus:outline-none focus:ring-2 focus:ring-[#1E73BE] pr-10 text-base transition-all duration-300 hover:shadow-md"
               placeholder="••••••••"
               required
               disabled={isSubmitting || isLoggedIn}
@@ -160,12 +160,12 @@ export default function LoginPanel() {
               disabled={isSubmitting || isLoggedIn}
             >
               {showPassword ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
                   <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
                 </svg>
               ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
                   <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
                 </svg>
@@ -182,10 +182,10 @@ export default function LoginPanel() {
               type="checkbox"
               checked={showPassword}
               onChange={(e) => setShowPassword(e.target.checked)}
-              className="w-3.5 h-3.5 accent-[#1E73BE] rounded focus:ring-[#1E73BE] border-[#D3D9E3]"
+              className="w-4 h-4 accent-[#1E73BE] rounded focus:ring-[#1E73BE] border-[#D3D9E3]"
               disabled={isSubmitting || isLoggedIn}
             />
-            <label htmlFor="showPassword" className="text-xs text-gray-600">
+            <label htmlFor="showPassword" className="text-sm text-gray-600">
               Show password
             </label>
           </div>
@@ -195,7 +195,7 @@ export default function LoginPanel() {
         <button
           type="submit"
           disabled={isSubmitting || isLoggedIn}
-          className="w-full bg-white border-2 border-[#1E73BE] text-[#1E73BE] py-2.5 rounded-md font-semibold hover:bg-[#1E73BE] hover:text-white transition-all duration-300 cursor-pointer text-[0.95rem] transform hover:scale-105 hover:shadow-lg animate-fade-in-up delay-300 disabled:opacity-70 disabled:cursor-not-allowed"
+          className="w-full bg-white border-2 border-[#1E73BE] text-[#1E73BE] py-3 rounded-md font-semibold hover:bg-[#1E73BE] hover:text-white transition-all duration-300 cursor-pointer text-base transform hover:scale-105 hover:shadow-lg animate-fade-in-up delay-300 disabled:opacity-70 disabled:cursor-not-allowed"
         >
           {isSubmitting ? (
             <div className="flex items-center justify-center">
@@ -214,7 +214,7 @@ export default function LoginPanel() {
       {/* Divider */}
       <div className="flex items-center animate-fade-in-up delay-300">
         <div className="flex-grow border-t border-gray-200"></div>
-        <span className="mx-3 text-xs font-medium text-gray-500 uppercase tracking-wide">OR CONTINUE WITH</span>
+        <span className="mx-3 text-sm font-medium text-gray-500 uppercase tracking-wide">OR CONTINUE WITH</span>
         <div className="flex-grow border-t border-gray-200"></div>
       </div>
 
@@ -225,9 +225,9 @@ export default function LoginPanel() {
 
       {/* Footer */}
       <div className="text-center animate-fade-in-up delay-300">
-        <p className="text-xs text-gray-600">
+        <p className="text-sm text-gray-600">
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button 
+          <button
             onClick={() => toggleMode(isSignUp ? 'login' : 'signup')}
             className="text-[#1E73BE] font-medium hover:underline relative group cursor-pointer transition-all duration-200 transform hover:scale-105"
             disabled={isSubmitting || isLoggedIn}
