@@ -53,7 +53,7 @@ class HybridTCN(nn.Module):
 
 
 # ---------------- Real-Time Watcher ---------------- #
-def wait_and_predict(excel_path, seq_len=240, target_temp=32.0, poll_interval=5):
+def wait_and_predict(excel_path, seq_len=240, target_temp=40.0, poll_interval=5):
     """
     Behaviour:
       - On start, record current number of rows in the Excel file.

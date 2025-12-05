@@ -82,7 +82,18 @@ function TemperatureGauge({ value = 41.9, min = 25, max = 60, threshold = 31.7, 
           <path d={describeArc(cx, cy, radius, dangerStart, dangerEnd)} stroke="#dc2626" strokeWidth="22" fill="none" opacity="1.0" />
           <path d={describeArc(cx, cy, radius, dangerStart, dangerEnd)} stroke="#ef4444" strokeWidth="24" fill="none" opacity="0.6" />
           <path d={describeArc(cx, cy, radius, dangerStart, dangerEnd)} stroke="#fca5a5" strokeWidth="32" fill="none" opacity="0.3" />
-          <line x1={cx} y1={cy} x2={thEnd.x} y2={thEnd.y} stroke="#ef4444" strokeWidth="2" strokeDasharray="4 4" />
+          {/* Threshold line (orange dashed) */}
+          <line x1={cx} y1={cy} x2={thEnd.x} y2={thEnd.y} stroke="#f97316" strokeWidth="2" strokeDasharray="4 4" />
+          {/* Target line at 40°C (red dashed) */}
+          <line
+            x1={cx}
+            y1={cy}
+            x2={polarToCartesian(cx, cy, radius - 8, mapTempToAngle(40)).x}
+            y2={polarToCartesian(cx, cy, radius - 8, mapTempToAngle(40)).y}
+            stroke="#ef4444"
+            strokeWidth="2"
+            strokeDasharray="4 4"
+          />
           <line x1={cx} y1={cy} x2={needleEnd.x} y2={needleEnd.y} stroke="#0ea5e9" strokeWidth="4" strokeLinecap="round" className="transition-all duration-300 ease-out" />
           <circle cx={cx} cy={cy} r="8" fill="#0ea5e9" stroke="#38bdf8" strokeWidth="3" />
         </svg>
@@ -93,8 +104,9 @@ function TemperatureGauge({ value = 41.9, min = 25, max = 60, threshold = 31.7, 
           <span className="text-4xl font-black text-gray-900 tracking-tight">{value.toFixed(3)}</span>
           <span className="text-lg font-bold text-gray-700">°C</span>
         </div>
-        <div className="text-xs text-gray-600">
-          Threshold: <span className="font-semibold text-red-600">{threshold.toFixed(1)}°C</span>
+        <div className="text-xs text-gray-600 flex flex-col gap-1">
+          <div>Threshold: <span className="font-semibold text-orange-600">{threshold.toFixed(1)}°C</span></div>
+          <div>Target: <span className="font-semibold text-red-600">40.0°C</span></div>
         </div>
       </div>
 
@@ -171,7 +183,8 @@ export default function TemperaturePage() {
 
   // Predictive Alert State
   const [tempHistory, setTempHistory] = useState([])
-  const [alertSent, setAlertSent] = useState(false)
+  const [alertSent, setAlertSent] = useState(false) // 5-minute alert
+  const [alert10MinSent, setAlert10MinSent] = useState(false) // 10-minute alert
   const [predictedTime, setPredictedTime] = useState(null)
 
   // Live Excel Data State
@@ -182,6 +195,10 @@ export default function TemperaturePage() {
   const [isPredicting, setIsPredicting] = useState(false)
   const [predictionStatus, setPredictionStatus] = useState('idle')
   const [countdown, setCountdown] = useState(1200) // 20 minutes in seconds
+
+  // Target Temperature (fixed at 40°C)
+  const TARGET_TEMP = 40.0
+  const [targetAlertSent, setTargetAlertSent] = useState(false)
 
   // Load threshold from settings (localStorage)
   useEffect(() => {
@@ -248,6 +265,74 @@ export default function TemperaturePage() {
     return () => clearInterval(interval)
   }, [])
 
+  // Alert function - sends email via Resend API
+  const sendAlert = async (recipientList, currentTemp, thresholdTemp, message) => {
+    try {
+      // Extract emails from recipients (recipients can be objects with email property or strings)
+      const emails = recipientList.map(r => typeof r === 'string' ? r : r.email)
+      const recipientNames = recipientList.map(r => typeof r === 'string' ? 'User' : (r.name || 'User'))
+
+      console.log('[ALERT] Sending to:', emails)
+
+      const response = await fetch('/api/send-alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          emails: emails,
+          recipientNames: recipientNames,
+          currentTemp: currentTemp,
+          threshold: thresholdTemp,
+          etaMinutes: 0,
+          customMessage: message,
+          isDanger: currentTemp < thresholdTemp
+        })
+      })
+
+      const result = await response.json()
+      console.log('[ALERT] Response:', result)
+
+      // Show popup notification
+      if (result.success) {
+        addToast(`🚨 Alert sent to ${emails.join(', ')}`, 'success')
+      } else {
+        addToast(`⚠️ Alert failed: ${result.error || 'Unknown error'}`, 'error')
+      }
+    } catch (error) {
+      console.error('Error sending alert:', error)
+      addToast(`❌ Alert failed: ${error.message}`, 'error')
+    }
+  }
+
+  // Monitor temperature for threshold and target breaches - sends ONCE only
+  useEffect(() => {
+    if (!isLiveMode || recipients.length === 0) return
+
+    // Check threshold breach - send only ONCE
+    if (currentTemp < userThreshold && !alertSent) {
+      console.log(`🚨 THRESHOLD ALERT: Temp ${currentTemp}°C below threshold ${userThreshold}°C`)
+      sendAlert(
+        recipients,
+        currentTemp,
+        userThreshold,
+        `⚠️ ALERT: Temperature dropped below threshold! Current: ${currentTemp}°C, Threshold: ${userThreshold}°C`
+      )
+      setAlertSent(true)
+    }
+
+    // Check target breach (40°C) - send only ONCE
+    if (currentTemp < TARGET_TEMP && !targetAlertSent) {
+      console.log(`🚨 TARGET ALERT: Temp ${currentTemp}°C below target ${TARGET_TEMP}°C`)
+      sendAlert(
+        recipients,
+        currentTemp,
+        TARGET_TEMP,
+        `🎯 ALERT: Temperature dropped below target! Current: ${currentTemp}°C, Target: ${TARGET_TEMP}°C`
+      )
+      setTargetAlertSent(true)
+    }
+    // NOTE: Alert flags are NOT auto-reset. They only reset when user clicks Start Monitoring again.
+  }, [currentTemp])
+
   // Poll prediction status when prediction is running
   useEffect(() => {
     if (!isPredicting) return
@@ -285,16 +370,29 @@ export default function TemperaturePage() {
     return () => clearInterval(timer)
   }, [predictedTime !== null && predictedTime > 0])
 
-  // Alert trigger when Time to Threshold reaches 5 minutes (300 seconds)
+  // Alert triggers when Time to Threshold reaches 10 minutes and 5 minutes
   useEffect(() => {
-    // Trigger alert at exactly 5 minutes (300 seconds) remaining
-    if (predictedTime === 300 && !alertSent && recipients.length > 0) {
-      console.log('🚨 AUTO ALERT: 5 minutes remaining to threshold!')
-      sendPredictiveAlert(
+    if (recipients.length === 0) return
+
+    // Trigger alert at exactly 10 minutes (600 seconds) remaining
+    if (predictedTime === 600 && !alert10MinSent) {
+      console.log('🚨 AUTO ALERT: 10 minutes remaining to threshold!')
+      sendAlert(
         recipients,
         currentTemp,
         userThreshold,
-        300, // 5 minutes in seconds
+        `⏰ ALERT: Temperature will reach ${userThreshold}°C in 10 minutes!`
+      )
+      setAlert10MinSent(true)
+    }
+
+    // Trigger alert at exactly 5 minutes (300 seconds) remaining
+    if (predictedTime === 300 && !alertSent) {
+      console.log('🚨 AUTO ALERT: 5 minutes remaining to threshold!')
+      sendAlert(
+        recipients,
+        currentTemp,
+        userThreshold,
         `⏰ ALERT: Temperature will reach ${userThreshold}°C in 5 minutes!`
       )
       setAlertSent(true)
@@ -309,6 +407,10 @@ export default function TemperaturePage() {
       setIsPredicting(true)
       setPredictionStatus('waiting')
       setCountdown(1200) // Reset to 20 minutes
+      // Reset all alert flags for new monitoring session
+      setAlertSent(false)
+      setAlert10MinSent(false)
+      setTargetAlertSent(false)
 
       const res = await fetch('/api/start-prediction', { method: 'POST' })
       console.log('[DEBUG] API response status:', res.status)
@@ -861,7 +963,7 @@ export default function TemperaturePage() {
                           <div className="text-6xl font-black text-orange-700" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
                             {Math.floor(predictedTime / 60)}:{(predictedTime % 60).toString().padStart(2, '0')}
                           </div>
-                          <div className="text-sm text-orange-600 font-semibold mt-2">to reach 32°C</div>
+                          <div className="text-sm text-orange-600 font-semibold mt-2">to reach 40°C</div>
                         </>
                       ) : isPredicting ? (
                         <>
@@ -937,7 +1039,7 @@ export default function TemperaturePage() {
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-sm font-medium text-gray-700">Progress</span>
-                            <span className="text-sm font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">{((42.5 - currentTemp) / (42.5 - 31.7) * 100).toFixed(1)}%</span>
+                            <span className="text-sm font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">{Math.max(0, Math.min(100, ((70 - currentTemp) / (70 - series.threshold) * 100))).toFixed(1)}%</span>
                           </div>
                         </div>
                       </div>
